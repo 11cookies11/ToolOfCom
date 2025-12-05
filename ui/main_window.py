@@ -7,6 +7,7 @@ from typing import List
 
 try:
     from PySide6.QtCore import Qt, Signal
+    from PySide6.QtGui import QTextCursor
     from PySide6.QtWidgets import (
         QApplication,
         QComboBox,
@@ -21,6 +22,7 @@ try:
     )
 except ImportError:  # pragma: no cover
     from PyQt6.QtCore import Qt, pyqtSignal as Signal  # type: ignore
+    from PyQt6.QtGui import QTextCursor  # type: ignore
     from PyQt6.QtWidgets import (  # type: ignore
         QApplication,
         QComboBox,
@@ -150,7 +152,7 @@ class MainWindow(QMainWindow):
 
     def _append_log(self, message: str) -> None:
         self.log_view.append(message)
-        self.log_view.moveCursor(self.log_view.textCursor().End)
+        self.log_view.moveCursor(QTextCursor.End)
 
 
 def run_app(bus: EventBus, serial: SerialManager) -> None:
