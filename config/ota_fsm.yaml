@@ -1,0 +1,15 @@
+start: erase
+states:
+  erase:
+    send: erase
+    wait: erase
+    next: write
+  write:
+    send: write
+    wait: write
+    loop: until_finished  # 需由上层通过 ota.loop.finished 停止
+    next: finish
+  finish:
+    send: finish
+    wait: finish
+    exit: true
