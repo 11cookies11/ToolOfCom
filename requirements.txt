@@ -1,2 +1,3 @@
 pywin32>=306
 python-dotenv>=1.0.0
+pyserial>=3.5
