@@ -1,0 +1,4 @@
+# commands:
+#   ping:
+#     frame: [0xAA, 0x55, 0x01, 0x00, 0xFE]
+#     crc: crc16_modbus

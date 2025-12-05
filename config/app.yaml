@@ -1,0 +1,4 @@
+# app:
+#   name: ToolOfCOM
+#   auto_update: false
+#   log_level: INFO
