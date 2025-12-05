@@ -7,7 +7,7 @@ from pathlib import Path
 from core.event_bus import EventBus
 from core.plugin_manager import PluginManager
 from core.protocol_loader import ProtocolLoader
-from core.serial_manager import SerialConfig, SerialManager
+from core.serial_manager import SerialManager
 from ui.main_window import MainWindow
 
 
@@ -16,11 +16,9 @@ def bootstrap() -> None:
     plugins = PluginManager(Path("plugins"))
     plugins.discover()
 
-    protocol = ProtocolLoader(Path("config/protocol.yaml"))
-    protocol.load()
+    protocol = ProtocolLoader(bus)
 
-    serial = SerialManager(SerialConfig(port="COM1"))
-    # TODO: 在此处根据配置打开串口、绑定事件
+    serial = SerialManager(bus)
 
     ui = MainWindow()
     ui.show()
