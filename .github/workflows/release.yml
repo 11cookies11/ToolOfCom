@@ -1,0 +1,82 @@
+name: Build and Release ToolOfCom
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Build executable for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build executable (PyInstaller)
+        run: |
+          pyinstaller --name ToolOfCom --windowed --onefile main.py
+
+      - name: Package artifacts
+        run: |
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            powershell Compress-Archive dist\\ToolOfCom.exe ToolOfCom-${{ github.ref_name }}-win.zip
+          else
+            tar -czvf ToolOfCom-${{ github.ref_name }}-linux.tar.gz dist/ToolOfCom
+          fi
+
+      - name: Upload artifacts for release
+        uses: actions/upload-artifact@v3
+        with:
+          name: ToolOfCom-${{ matrix.os }}-${{ github.ref_name }}
+          path: |
+            ToolOfCom-${{ github.ref_name }}-win.zip
+            ToolOfCom-${{ github.ref_name }}-linux.tar.gz
+        if: always()
+
+  release:
+    name: Publish Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ./dist
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "ToolOfCom ${{ github.ref_name }}"
+          body: |
+            Auto-generated release for ToolOfCom.
+            Features:
+            - PyInstaller packaged binaries
+            - Multi-platform support (Windows/Linux)
+            - DSL automation engine
+            - Manual communication tools
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload files to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/**/* 
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
