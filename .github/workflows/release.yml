@@ -28,8 +28,14 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build executable (PyInstaller)
+        shell: bash
         run: |
-          pyinstaller --name ToolOfCom --windowed --onefile main.py
+          SEP=":"
+          if [ "$RUNNER_OS" = "Windows" ]; then SEP=";"; fi
+          pyinstaller --name ToolOfCom --windowed --onefile \
+            --add-data "config${SEP}config" \
+            --add-data "plugins${SEP}plugins" \
+            main.py
 
       - name: Package artifacts
         shell: bash

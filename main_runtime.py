@@ -5,13 +5,13 @@ import logging
 import socket
 import sys
 import time
-from pathlib import Path
 from typing import Any, Dict
 
 import yaml
 
 from actions import modbus_request, xmodem_send, ymodem_send
 from protocols import modbus_ascii, modbus_rtu, modbus_tcp, xmodem, ymodem  # noqa: F401 触发注册
+from utils.path_utils import resolve_resource_path
 
 try:
     import serial
@@ -157,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger = logging.getLogger("runtime")
 
-    config_path = Path(args.config)
+    config_path = resolve_resource_path(args.config)
     if not config_path.exists():
         logger.error(f"配置不存在: {config_path}")
         return 2

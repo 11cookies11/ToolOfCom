@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 try:
     from PySide6.QtCore import QTimer
@@ -25,7 +24,7 @@ def main() -> None:
     comm = CommunicationManager(bus)
     protocol = ProtocolLoader(bus)
     fsm = FsmEngine(bus, protocol)
-    plugins = PluginManager(bus, Path("plugins"), protocol=protocol)
+    plugins = PluginManager(bus, protocol=protocol)
     plugins.load_all()
 
     app = QApplication.instance() or QApplication(sys.argv)

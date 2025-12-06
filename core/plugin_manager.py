@@ -11,13 +11,14 @@ from types import ModuleType
 from typing import Dict, List, Optional
 
 from core.event_bus import EventBus
+from utils.path_utils import resolve_resource_path
 
 
 class PluginManager:
-    def __init__(self, bus: EventBus, plugin_dir: str = "plugins", protocol=None) -> None:
+    def __init__(self, bus: EventBus, plugin_dir: str | Path | None = None, protocol=None) -> None:
         self.bus = bus
         self.protocol = protocol
-        self.plugin_dir = Path(plugin_dir)
+        self.plugin_dir = resolve_resource_path(plugin_dir or "plugins")
         self._plugins: Dict[str, ModuleType] = {}
 
     def load_all(self) -> None:

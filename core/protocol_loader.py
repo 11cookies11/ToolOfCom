@@ -14,6 +14,7 @@ from typing import Any, Dict, Optional
 import yaml
 
 from core.event_bus import EventBus
+from utils.path_utils import resolve_resource_path
 
 
 def crc16_modbus(data: bytes) -> int:
@@ -43,9 +44,9 @@ def crc8(data: bytes, poly: int = 0x07, init: int = 0x00) -> int:
 
 
 class ProtocolLoader:
-    def __init__(self, bus: EventBus, config_path: str = "config/protocol.yaml") -> None:
+    def __init__(self, bus: EventBus, config_path: str | Path = "config/protocol.yaml") -> None:
         self.bus = bus
-        self.config_path = Path(config_path)
+        self.config_path = resolve_resource_path(config_path)
         self.config: Dict[str, Any] = {}
         self._buffer = bytearray()
         self._header = b""
@@ -59,6 +60,8 @@ class ProtocolLoader:
 
     def load_config(self) -> None:
         """加载 YAML 配置，并缓存关键字段。"""
+        if not self.config_path.exists():
+            raise FileNotFoundError(f"Protocol config not found: {self.config_path}")
         with self.config_path.open("r", encoding="utf-8") as f:
             self.config = yaml.safe_load(f) or {}
 

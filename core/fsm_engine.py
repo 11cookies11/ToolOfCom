@@ -9,13 +9,14 @@ import yaml
 
 from core.event_bus import EventBus
 from core.protocol_loader import ProtocolLoader
+from utils.path_utils import resolve_resource_path
 
 
 class FsmEngine:
-    def __init__(self, bus: EventBus, protocol: ProtocolLoader, config_path: str = "config/ota_fsm.yaml") -> None:
+    def __init__(self, bus: EventBus, protocol: ProtocolLoader, config_path: str | Path = "config/ota_fsm.yaml") -> None:
         self.bus = bus
         self.protocol = protocol
-        self.config_path = Path(config_path)
+        self.config_path = resolve_resource_path(config_path)
         self.config: Dict[str, Any] = {}
         self.current_state: Optional[str] = None
         self._loop_break = False
