@@ -63,7 +63,6 @@ class CommunicationManager:
             return
         try:
             self._current_session.send(data)
-            self._bus.publish("comm.tx", data)
         except Exception as exc:
             self._bus.publish("comm.error", str(exc))
 

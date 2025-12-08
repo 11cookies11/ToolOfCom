@@ -2,7 +2,7 @@ version: 1
 
 vars:
   block: 1
-  file_path: ./app.bin      # firmware BIN path
+  file_path: ./app_block5_first.bin      # firmware BIN path
   max_blocks: 960           # 120 KB / 128B
   retry: 0                  # current retry count
   max_retry: 5              # max retries per block before abort
@@ -12,6 +12,7 @@ channels:
     type: tcp
     host: 192.168.31.135    # Renode UART bridge host
     port: 4321              # Renode UART bridge port
+    baudrate: 19200         # baudrate hint if using a serial bridge
     timeout: 10             # connection timeout seconds
     log_path: ./logs/boot_uart.log
 
@@ -31,6 +32,7 @@ state_machine:
         - action: send_xmodem_block
           args:
             block: "$block"
+        - wait: { ms: 50 }        # inter-packet gap to allow device processing
       on_event:
         "\x06": next_block      # ACK
         "\x15": resend_block    # NAK

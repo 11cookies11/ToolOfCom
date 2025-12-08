@@ -7,6 +7,8 @@ import codecs
 from pathlib import Path
 from typing import List, Optional
 
+import yaml
+
 try:
     from PySide6.QtCore import Signal
     from PySide6.QtGui import QTextCursor
@@ -146,7 +148,7 @@ class MainWindow(QMainWindow):
         self.log_view.setReadOnly(True)
 
         self.input_edit = QLineEdit()
-        self.input_edit.setPlaceholderText("输入 HEX（如: 55 AA 01）或文本")
+        self.input_edit.setPlaceholderText("输入 HEX（如: 55 AA 01）")
         self.send_btn = QPushButton("发送")
 
         send_bar = QHBoxLayout()
@@ -216,6 +218,24 @@ class MainWindow(QMainWindow):
         self.display_mode = self.display_combo.currentText().lower()
         self._text_decoder = codecs.getincrementaldecoder("utf-8")()
         self._rx_text_buffer = ""
+        if self.display_mode == "hex":
+            self.input_edit.setPlaceholderText("输入 HEX（如: 55 AA 01）")
+        else:
+            self.input_edit.setPlaceholderText("输入文本（UTF-8）")
+
+    def _set_display_mode(self, mode: str) -> None:
+        """Force switch display/input mode by value ('hex' or 'text')."""
+        mode = (mode or "").lower()
+        if mode not in {"hex", "text"}:
+            return
+        target_text = "HEX" if mode == "hex" else "Text"
+        if self.display_combo.currentText().lower() == mode:
+            # ensure placeholder/decoder are refreshed
+            self._change_display_mode()
+        else:
+            idx = self.display_combo.findText(target_text)
+            if idx >= 0:
+                self.display_combo.setCurrentIndex(idx)
 
     def _close_comm(self) -> None:
         self.comm.close()
@@ -226,17 +246,23 @@ class MainWindow(QMainWindow):
             return
         data = self._parse_input(text)
         if data is None:
-            self._log("输入格式错误，需要 HEX 或文本")
+            if self.display_mode == "hex":
+                self._log("输入格式错误，需要 HEX（如 55 AA 01）")
+            else:
+                self._log("输入格式错误，需要可编码为 UTF-8 的文本")
             return
         self.comm.send(data)
 
     def _parse_input(self, text: str) -> bytes | None:
-        cleaned = text.replace(" ", "")
-        if len(cleaned) % 2 == 0 and all(c in "0123456789abcdefABCDEF" for c in cleaned):
+        if self.display_mode == "hex":
+            cleaned = text.replace(" ", "")
+            if len(cleaned) % 2 != 0 or not cleaned:
+                return None
             try:
                 return bytes.fromhex(cleaned)
             except Exception:
                 return None
+        # text mode
         try:
             return text.encode("utf-8")
         except Exception:
@@ -312,6 +338,16 @@ class MainWindow(QMainWindow):
             text = Path(path).read_text(encoding="utf-8")
             self.yaml_edit.setPlainText(text)
             self._log_script(f"加载脚本: {path}")
+            try:
+                data = yaml.safe_load(text) or {}
+                if isinstance(data, dict):
+                    ui_cfg = data.get("ui", {}) or {}
+                    display_mode = ui_cfg.get("display_mode") or data.get("display_mode")
+                    if display_mode:
+                        self._set_display_mode(str(display_mode))
+            except Exception:
+                # ignore YAML hints parsing errors for UI preferences
+                pass
         except Exception as exc:
             self._log_script(f"[ERROR] 加载失败: {exc}")
 
