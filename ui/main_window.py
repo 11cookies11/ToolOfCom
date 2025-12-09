@@ -77,9 +77,11 @@ class MainWindow(QMainWindow):
         self.display_mode = "hex"
         self._text_decoder = codecs.getincrementaldecoder("utf-8")()
         self._rx_text_buffer: str = ""
-        self.setWindowTitle("ToolOfCOM - 工作流控制台")
+        self.setWindowTitle("TOC 控制台")
         self.resize(1320, 860)
         self.setMinimumSize(960, 600)
+        # 无边框窗口，自定义标题栏（按钮在内容区）
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowSystemMenuHint)
 
         self._build_ui()
         self._wire_events()
@@ -802,6 +804,28 @@ class MainWindow(QMainWindow):
 
     def _switch_to_manual_mode(self) -> None:
         self.mode = "manual"
+
+    # -------------------- 窗口拖拽（无边框） --------------------
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.LeftButton:
+            gp = event.globalPosition().toPoint() if hasattr(event, "globalPosition") else event.globalPos()
+            self._drag_pos = gp - self.frameGeometry().topLeft()
+            event.accept()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:
+        if event.buttons() & Qt.LeftButton and hasattr(self, "_drag_pos"):
+            gp = event.globalPosition().toPoint() if hasattr(event, "globalPosition") else event.globalPos()
+            self.move(gp - self._drag_pos)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        if event.button() == Qt.LeftButton and hasattr(self, "_drag_pos"):
+            self._drag_pos = None
+            event.accept()
+        super().mouseReleaseEvent(event)
         self.mode_label.setText("模式：手动")
         self.mode_combo.setEnabled(True)
         self.refresh_btn.setEnabled(True)
