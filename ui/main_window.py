@@ -11,7 +11,7 @@ from typing import List, Optional
 import yaml
 
 try:
-    from PySide6.QtCore import Qt, Signal
+    from PySide6.QtCore import QEvent, QPoint, QRect, Qt, Signal
     from PySide6.QtGui import QTextCursor
     from PySide6.QtWidgets import (
         QApplication,
@@ -35,7 +35,7 @@ try:
         QWidget,
     )
 except ImportError:  # pragma: no cover
-    from PyQt6.QtCore import Qt, pyqtSignal as Signal  # type: ignore
+    from PyQt6.QtCore import QEvent, QPoint, QRect, Qt, pyqtSignal as Signal  # type: ignore
     from PyQt6.QtGui import QTextCursor  # type: ignore
     from PyQt6.QtWidgets import (  # type: ignore
         QApplication,
@@ -69,6 +69,7 @@ from ui.title_bar import TitleBar
 
 class MainWindow(QMainWindow):
     log_signal = Signal(object)
+    RESIZE_MARGIN = 8
 
     def __init__(self, bus: EventBus, comm: CommunicationManager) -> None:
         super().__init__()
@@ -107,6 +108,8 @@ class MainWindow(QMainWindow):
         self.title_bar.max_btn.clicked.connect(self._toggle_maximize_restore)
         self.title_bar.close_btn.clicked.connect(self.close)
         self.title_bar.set_maximized(self.isMaximized())
+        self.title_bar.setMouseTracking(True)
+        self.title_bar.installEventFilter(self)
 
         # 左侧导航（标题在外，按钮在圆角面板内）
         self.nav_buttons: dict[str, QPushButton] = {}
@@ -377,6 +380,10 @@ class MainWindow(QMainWindow):
         container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
+        self.setMouseTracking(True)
+        container.setMouseTracking(True)
+        container.installEventFilter(self)
+        self.installEventFilter(self)
 
         self.log_signal.connect(self._append_log)
         # 默认选中控制面板
@@ -814,27 +821,155 @@ class MainWindow(QMainWindow):
     def _switch_to_manual_mode(self) -> None:
         self.mode = "manual"
 
-    # -------------------- 窗口拖拽（无边框） --------------------
+    # -------------------- 窗口拖拽/缩放（无边框） --------------------
+    def _hit_test(self, pos: QPoint) -> str | None:
+        """返回命中的边/角方向（left/right/top/bottom 组合）"""
+        margin = self.RESIZE_MARGIN
+        rect = self.rect()
+        on_left = pos.x() <= margin
+        on_right = pos.x() >= rect.width() - margin
+        on_top = pos.y() <= margin
+        on_bottom = pos.y() >= rect.height() - margin
+        if on_top and on_left:
+            return "top_left"
+        if on_top and on_right:
+            return "top_right"
+        if on_bottom and on_left:
+            return "bottom_left"
+        if on_bottom and on_right:
+            return "bottom_right"
+        if on_left:
+            return "left"
+        if on_right:
+            return "right"
+        if on_top:
+            return "top"
+        if on_bottom:
+            return "bottom"
+        return None
+
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
+            handled = self._start_resize_if_needed(
+                event.globalPosition() if hasattr(event, "globalPosition") else event.globalPos()
+            )
+            if handled:
+                return
             gp = event.globalPosition().toPoint() if hasattr(event, "globalPosition") else event.globalPos()
             self._drag_pos = gp - self.frameGeometry().topLeft()
             event.accept()
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:
+        gp = event.globalPosition().toPoint() if hasattr(event, "globalPosition") else event.globalPos()
+        if getattr(self, "_resizing", False) and event.buttons() & Qt.LeftButton:
+            self._perform_resize(gp)
+            event.accept()
+            return
+
         if event.buttons() & Qt.LeftButton and hasattr(self, "_drag_pos"):
-            gp = event.globalPosition().toPoint() if hasattr(event, "globalPosition") else event.globalPos()
             self.move(gp - self._drag_pos)
             event.accept()
             return
+
+        self._update_hover_cursor(gp)
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:
-        if event.button() == Qt.LeftButton and hasattr(self, "_drag_pos"):
-            self._drag_pos = None
-            event.accept()
+        if event.button() == Qt.LeftButton:
+            if getattr(self, "_resizing", False):
+                self._resizing = False
+                self._resize_dir = None
+                self._resize_start_pos = None
+                self._resize_start_geom = None
+                self.unsetCursor()
+                event.accept()
+                return
+            if hasattr(self, "_drag_pos"):
+                self._drag_pos = None
+                event.accept()
+                return
         super().mouseReleaseEvent(event)
+
+    def eventFilter(self, obj, event):
+        et = event.type()
+        if et == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
+            gp = event.globalPosition() if hasattr(event, "globalPosition") else event.globalPos()
+            if self._start_resize_if_needed(gp):
+                return True
+        elif et == QEvent.MouseMove:
+            if getattr(self, "_resizing", False) and event.buttons() & Qt.LeftButton:
+                gp = event.globalPosition().toPoint() if hasattr(event, "globalPosition") else event.globalPos()
+                self._perform_resize(gp)
+                return True
+            elif not getattr(self, "_resizing", False):
+                gp = event.globalPosition().toPoint() if hasattr(event, "globalPosition") else event.globalPos()
+                self._update_hover_cursor(gp)
+        return super().eventFilter(obj, event)
+
+    def _start_resize_if_needed(self, global_pos) -> bool:
+        pos = self.mapFromGlobal(global_pos.toPoint() if hasattr(global_pos, "toPoint") else global_pos)
+        hit = self._hit_test(pos)
+        if hit:
+            self._resizing = True
+            self._resize_dir = hit
+            self._resize_start_pos = global_pos.toPoint() if hasattr(global_pos, "toPoint") else global_pos
+            self._resize_start_geom = self.geometry()
+            return True
+        return False
+
+    def _update_hover_cursor(self, global_pos: QPoint) -> None:
+        pos = self.mapFromGlobal(global_pos)
+        hit = self._hit_test(pos)
+        if hit in ("top_left", "bottom_right"):
+            self.setCursor(Qt.SizeFDiagCursor)
+        elif hit in ("top_right", "bottom_left"):
+            self.setCursor(Qt.SizeBDiagCursor)
+        elif hit in ("left", "right"):
+            self.setCursor(Qt.SizeHorCursor)
+        elif hit in ("top", "bottom"):
+            self.setCursor(Qt.SizeVerCursor)
+        else:
+            self.unsetCursor()
+
+    def _perform_resize(self, global_pos: QPoint) -> None:
+        if not getattr(self, "_resize_start_geom", None) or not getattr(self, "_resize_dir", None):
+            return
+        geom: QRect = QRect(self._resize_start_geom)
+        delta = global_pos - self._resize_start_pos
+
+        min_w = self.minimumWidth()
+        min_h = self.minimumHeight()
+
+        x, y, w, h = geom.x(), geom.y(), geom.width(), geom.height()
+
+        if "left" in self._resize_dir:
+            new_x = x + delta.x()
+            new_w = w - delta.x()
+            if new_w < min_w:
+                new_x = x + (w - min_w)
+                new_w = min_w
+            x, w = new_x, new_w
+        elif "right" in self._resize_dir:
+            new_w = w + delta.x()
+            if new_w < min_w:
+                new_w = min_w
+            w = new_w
+
+        if "top" in self._resize_dir:
+            new_y = y + delta.y()
+            new_h = h - delta.y()
+            if new_h < min_h:
+                new_y = y + (h - min_h)
+                new_h = min_h
+            y, h = new_y, new_h
+        elif "bottom" in self._resize_dir:
+            new_h = h + delta.y()
+            if new_h < min_h:
+                new_h = min_h
+            h = new_h
+
+        self.setGeometry(x, y, w, h)
 
     def _toggle_maximize_restore(self) -> None:
         if self.isMaximized():
