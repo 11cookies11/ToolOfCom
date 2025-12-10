@@ -15,7 +15,6 @@ from core.communication_manager import CommunicationManager
 from core.event_bus import EventBus
 from core.plugin_manager import PluginManager
 from core.protocol_loader import ProtocolLoader
-from core.fsm_engine import FsmEngine
 from ui.main_window import MainWindow
 
 
@@ -23,7 +22,6 @@ def main() -> None:
     bus = EventBus()
     comm = CommunicationManager(bus)
     protocol = ProtocolLoader(bus)
-    fsm = FsmEngine(bus, protocol)
     plugins = PluginManager(bus, protocol=protocol)
     plugins.load_all()
 
