@@ -14,6 +14,8 @@ ToolOfCom 是一个通信运行时引擎，让 UART / TCP / Modbus / XMODEM 的�
 
 [EN](./README_EN.md)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 ## 🌐 项目简介（Overview）
 
 ToolOfCOM 不是一个“串口助手”，它是一套 **通信逻辑运行时**。
@@ -260,23 +262,23 @@ state_machine:
 
 
 
-## 🤝 如何贡献（Contribute）
+## 🤝 ?????Contribute?
 
-欢迎提交 PR、Issue 或协议扩展插件。
- ToolOfCom 的设计目标就是成为通信协议执行层的基础设施。
-
----
-
-
-
-## 📄 许可证（License）
-
-MIT — 商用、私人或与硬件产品集成都可自由使用。
+???? PR?Issue ????????ToolOfCOM ???????????????????
 
 ---
 
 
 
-## 学习更多
+## 📄 ????License?
 
-**请阅读 `docs/USER_GUIDE.md` 获取完整 DSL 语法、状态机详解、协议动作说明、扩展方法与最佳实践。**
+This project is licensed under the MIT License.  
+See the [LICENSE](./LICENSE) file for details.
+
+---
+
+
+
+## ????
+
+**??? `docs/USER_GUIDE.md` ???? DSL ??????????????????????????**

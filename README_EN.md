@@ -14,6 +14,8 @@ ToolOfCOM is a communication runtime engine that transforms UART / TCP / Modbus 
 
 [中文](./README.md)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 ## 🌐 Overview
 
 ToolOfCOM is not a “serial assistant” tool — it is a **communication logic runtime**.
@@ -202,9 +204,12 @@ PRs, issues, and protocol extension plugins are warmly welcome.
 
 ## 📄 License
 
-MIT — free for commercial, private, and hardware-integrated use.
+This project is licensed under the MIT License.  
+See the [LICENSE](./LICENSE) file for details.
 
 ------
+
+
 
 ## Learn More
 
