@@ -5,6 +5,9 @@ from __future__ import annotations
 import sys
 import binascii
 import codecs
+import subprocess
+import importlib
+import pkgutil
 from pathlib import Path
 from typing import List, Optional
 
@@ -27,6 +30,8 @@ try:
         QPlainTextEdit,
         QProgressBar,
         QPushButton,
+        QScrollArea,
+        QSizePolicy,
         QSplitter,
         QStackedWidget,
         QTabWidget,
@@ -51,6 +56,8 @@ except ImportError:  # pragma: no cover
         QPlainTextEdit,
         QProgressBar,
         QPushButton,
+        QScrollArea,
+        QSizePolicy,
         QSplitter,
         QStackedWidget,
         QTabWidget,
@@ -61,6 +68,8 @@ except ImportError:  # pragma: no cover
 
 from core.communication_manager import CommunicationManager
 from core.event_bus import EventBus
+from protocols.registry import ProtocolRegistry
+import protocols as protocols_pkg
 from ui.script_runner_qt import ScriptRunnerQt
 from ui.title_bar import TitleBar
 
@@ -81,27 +90,152 @@ class MainWindow(QMainWindow):
         self.display_mode = "hex"
         self._text_decoder = codecs.getincrementaldecoder("utf-8")()
         self._rx_text_buffer: str = ""
-        self.setWindowTitle("TOC 控制台")
+        self.language_map = {"简体中文": "zh", "English": "en"}
+        self.language_label_map = {code: label for label, code in self.language_map.items()}
+        self.current_language = "zh"
+        self.translations = {
+            "zh": {
+                "window_title": "TOC 控制台",
+                "nav_title": "导航",
+                "nav_control": "手动调试",
+                "nav_scripts": "自动脚本",
+                "nav_channels": "通道管理",
+                "nav_protocols": "协议驱动",
+                "nav_settings": "设置",
+                "btn_run_script": "运行脚本",
+                "btn_stop_script": "停止脚本",
+                "btn_load_yaml": "加载 YAML",
+                "btn_save_yaml": "保存 YAML",
+                "channel_group": "通道与连接",
+                "mode_label": "模式",
+                "refresh": "刷新",
+                "close": "关闭连接",
+                "serial": "串口",
+                "tcp": "TCP",
+                "connect_serial": "连接串口",
+                "connect_tcp": "连接 TCP",
+                "manual_group": "手动发送",
+                "display_format": "显示格式",
+                "send": "发送",
+                "placeholder_hex": "输入 HEX（如：55 AA 01）",
+                "placeholder_text": "输入 UTF-8 文本",
+                "comm_display_title": "通信收发",
+                "control_panel_title": "控制与连接",
+                "log_filter_level": "级别",
+                "log_filter_keyword": "关键字",
+                "log_filter": "过滤",
+                "log_reset": "重置",
+                "log_search_placeholder": "搜索日志内容...",
+                "log_tab_console": "控制台",
+                "log_tab_uart": "UART",
+                "log_tab_tcp": "TCP",
+                "log_tab_script": "脚本",
+                "yaml_placeholder": "在此粘贴或编辑 YAML，或点击“加载 YAML”载入文件。",
+                "yaml_editor_title": "自动脚本编辑",
+                "script_actions_title": "自动脚本控制",
+                "script_status_idle": "状态：空闲",
+                "script_status_template": "状态：{state}",
+                "channels_tab_title": "通道列表",
+                "protocols_tab_title": "协议驱动",
+                "settings_tab_title": "设置",
+                "settings_info_title": "软件信息",
+                "settings_version_label": "当前版本",
+                "settings_version_hint": "版本号从 VERSION 文件或 git describe 读取；未检测到时显示 dev。",
+                "settings_language_title": "语言",
+                "settings_language_label": "界面语言",
+                "settings_language_hint": "语言切换将应用于 UI 文案。",
+                "language_changed": "界面语言已切换为：{lang}",
+                "protocol_status_available": "可用",
+                "protocol_desc_placeholder": "暂无描述",
+                "protocol_type_label": "类型：{type}",
+                "protocols_empty": "暂未注册协议，请检查 protocols/registry.py。",
+            },
+            "en": {
+                "window_title": "TOC Console",
+                "nav_title": "Navigation",
+                "nav_control": "Manual",
+                "nav_scripts": "Scripts",
+                "nav_channels": "Channels",
+                "nav_protocols": "Protocols",
+                "nav_settings": "Settings",
+                "btn_run_script": "Run Script",
+                "btn_stop_script": "Stop Script",
+                "btn_load_yaml": "Load YAML",
+                "btn_save_yaml": "Save YAML",
+                "channel_group": "Channels & Connection",
+                "mode_label": "Mode",
+                "refresh": "Refresh",
+                "close": "Disconnect",
+                "serial": "Serial",
+                "tcp": "TCP",
+                "connect_serial": "Connect Serial",
+                "connect_tcp": "Connect TCP",
+                "manual_group": "Manual Send",
+                "display_format": "Display Format",
+                "send": "Send",
+                "placeholder_hex": "Enter HEX (e.g. 55 AA 01)",
+                "placeholder_text": "Enter UTF-8 text",
+                "comm_display_title": "IO Monitor",
+                "control_panel_title": "Control & Connection",
+                "log_filter_level": "Level",
+                "log_filter_keyword": "Keyword",
+                "log_filter": "Filter",
+                "log_reset": "Reset",
+                "log_search_placeholder": "Search logs...",
+                "log_tab_console": "Console",
+                "log_tab_uart": "UART",
+                "log_tab_tcp": "TCP",
+                "log_tab_script": "Script",
+                "yaml_placeholder": "Paste or edit YAML here, or click \"Load YAML\" to open a file.",
+                "yaml_editor_title": "Script Editor",
+                "script_actions_title": "Script Controls",
+                "script_status_idle": "Status: Idle",
+                "script_status_template": "Status: {state}",
+                "channels_tab_title": "Channel List",
+                "protocols_tab_title": "Protocol Drivers",
+                "settings_tab_title": "Settings",
+                "settings_info_title": "About",
+                "settings_version_label": "Current Version",
+                "settings_version_hint": "Version is read from VERSION file or git describe; shows dev if unavailable.",
+                "settings_language_title": "Language",
+                "settings_language_label": "UI Language",
+                "settings_language_hint": "Language switch will apply to UI text.",
+                "language_changed": "UI language switched to: {lang}",
+                "protocol_status_available": "Available",
+                "protocol_desc_placeholder": "No description",
+                "protocol_type_label": "Type: {type}",
+                "protocols_empty": "No protocols registered; check protocols/registry.py.",
+            },
+        }
+        self.app_version = self._get_app_version()
+        self.setWindowTitle(self._t("window_title"))
         self.resize(1320, 860)
         self.setMinimumSize(960, 600)
         # 无边框窗口，自定义标题栏（按钮在内容区）
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowSystemMenuHint)
 
+        self._load_protocols()
         self._build_ui()
         self._wire_events()
         self._refresh_ports()
         self._toggle_manual_comm_mode()
+
+    def _t(self, key: str) -> str:
+        lang = self.current_language if self.current_language in self.translations else "zh"
+        if lang not in self.translations:
+            lang = "zh"
+        return self.translations.get(lang, {}).get(key, self.translations.get("zh", {}).get(key, key))
 
     # -------------------- UI 构建 --------------------
     def _build_ui(self) -> None:
         self._apply_light_theme()
 
         # 顶部标题栏 + 脚本按钮
-        self.run_script_btn = QPushButton("运行脚本")
-        self.stop_script_btn = QPushButton("停止脚本")
+        self.run_script_btn = QPushButton(self._t("btn_run_script"))
+        self.stop_script_btn = QPushButton(self._t("btn_stop_script"))
         self.stop_script_btn.setEnabled(False)
-        self.load_yaml_btn = QPushButton("加载 YAML")
-        self.save_yaml_btn = QPushButton("保存 YAML")
+        self.load_yaml_btn = QPushButton(self._t("btn_load_yaml"))
+        self.save_yaml_btn = QPushButton(self._t("btn_save_yaml"))
 
         self.title_bar = TitleBar(self)
         self.title_bar.min_btn.clicked.connect(self.showMinimized)
@@ -117,10 +251,11 @@ class MainWindow(QMainWindow):
         nav_frame.setObjectName("navFrame")
         nav_layout = QVBoxLayout(nav_frame)
         nav_items = [
-            ("手动调试", "control"),
-            ("自动脚本", "scripts"),
-            ("通道管理", "channels"),
-            ("协议驱动", "protocols"),
+            (self._t("nav_control"), "control"),
+            (self._t("nav_scripts"), "scripts"),
+            (self._t("nav_channels"), "channels"),
+            (self._t("nav_protocols"), "protocols"),
+            (self._t("nav_settings"), "settings"),
         ]
         for label, key in nav_items:
             btn = QPushButton(label)
@@ -132,9 +267,9 @@ class MainWindow(QMainWindow):
         nav_layout.addStretch()
 
         nav_container = QVBoxLayout()
-        nav_title = QLabel("导航")
-        nav_title.setObjectName("sectionTitle")
-        nav_container.addWidget(nav_title)
+        self.nav_title = QLabel(self._t("nav_title"))
+        self.nav_title.setObjectName("sectionTitle")
+        nav_container.addWidget(self.nav_title)
         nav_container.addWidget(nav_frame)
 
         # 控制面板（通道/发送）供“手动调试”视图使用，标题放在外部
@@ -142,26 +277,27 @@ class MainWindow(QMainWindow):
         properties_frame.setObjectName("panel")
         properties_layout = QVBoxLayout(properties_frame)
 
-        channel_group = QGroupBox("通道与连接")
-        channel_form = QFormLayout(channel_group)
+        self.channel_group = QGroupBox(self._t("channel_group"))
+        channel_form = QFormLayout(self.channel_group)
         self.mode_combo = QComboBox()
-        self.mode_combo.addItems(["串口", "TCP"])
-        self.refresh_btn = QPushButton("刷新")
-        self.close_btn = QPushButton("关闭连接")
-        channel_form.addRow("模式", self.mode_combo)
-        channel_form.addRow("刷新", self.refresh_btn)
-        channel_form.addRow("关闭", self.close_btn)
+        self.mode_combo.addItem(self._t("serial"), userData="serial")
+        self.mode_combo.addItem(self._t("tcp"), userData="tcp")
+        self.refresh_btn = QPushButton(self._t("refresh"))
+        self.close_btn = QPushButton(self._t("close"))
+        channel_form.addRow(self._t("mode_label"), self.mode_combo)
+        channel_form.addRow(self._t("refresh"), self.refresh_btn)
+        channel_form.addRow(self._t("close"), self.close_btn)
 
         self.serial_row = QWidget()
         serial_layout = QHBoxLayout(self.serial_row)
         serial_layout.setContentsMargins(0, 0, 0, 0)
         self.port_combo = QComboBox()
         self.baud_edit = QLineEdit("115200")
-        self.connect_serial_btn = QPushButton("连接串口")
+        self.connect_serial_btn = QPushButton(self._t("connect_serial"))
         serial_layout.addWidget(self.port_combo, 2)
         serial_layout.addWidget(self.baud_edit, 1)
         serial_layout.addWidget(self.connect_serial_btn, 1)
-        self.serial_label = QLabel("串口")
+        self.serial_label = QLabel(self._t("serial"))
         channel_form.addRow(self.serial_label, self.serial_row)
 
         self.tcp_row = QWidget()
@@ -169,42 +305,45 @@ class MainWindow(QMainWindow):
         tcp_layout.setContentsMargins(0, 0, 0, 0)
         self.ip_edit = QLineEdit("127.0.0.1")
         self.tcp_port_edit = QLineEdit("6000")
-        self.connect_tcp_btn = QPushButton("连接 TCP")
+        self.connect_tcp_btn = QPushButton(self._t("connect_tcp"))
         tcp_layout.addWidget(self.ip_edit, 2)
         tcp_layout.addWidget(self.tcp_port_edit, 1)
         tcp_layout.addWidget(self.connect_tcp_btn, 1)
-        self.tcp_label = QLabel("TCP")
+        self.tcp_label = QLabel(self._t("tcp"))
         channel_form.addRow(self.tcp_label, self.tcp_row)
 
-        properties_layout.addWidget(channel_group)
+        properties_layout.addWidget(self.channel_group)
 
-        manual_group = QGroupBox("手动发送")
-        manual_layout = QVBoxLayout(manual_group)
+        self.manual_group = QGroupBox(self._t("manual_group"))
+        manual_layout = QVBoxLayout(self.manual_group)
         display_row = QWidget()
         display_layout = QHBoxLayout(display_row)
         display_layout.setContentsMargins(0, 0, 0, 0)
         self.display_combo = QComboBox()
-        self.display_combo.addItems(["HEX", "Text"])
-        display_layout.addWidget(QLabel("显示格式"))
+        self.display_combo.addItem("HEX", userData="hex")
+        self.display_combo.addItem("Text", userData="text")
+        self.display_label = QLabel(self._t("display_format"))
+        display_layout.addWidget(self.display_label)
         display_layout.addWidget(self.display_combo)
         display_layout.addStretch()
         manual_layout.addWidget(display_row)
 
         self.input_edit = QLineEdit()
-        self.input_edit.setPlaceholderText("输入 HEX（如：55 AA 01）")
-        self.send_btn = QPushButton("发送")
+        self.input_edit.setPlaceholderText(self._t("placeholder_hex"))
+        self.send_btn = QPushButton(self._t("send"))
         send_row = QHBoxLayout()
         send_row.addWidget(self.input_edit, 3)
         send_row.addWidget(self.send_btn, 1)
         manual_layout.addLayout(send_row)
 
-        properties_layout.addWidget(manual_group)
+        properties_layout.addWidget(self.manual_group)
 
         properties_layout.addStretch()
 
         # 中部内容：通道 / 协议 / 控制（控制时主区显示日志，右区显示面板）
         channels_tab = self._build_channels_tab()
         protocols_tab = self._build_protocols_tab()
+        settings_tab = self._build_settings_tab()
 
         # 底部日志
         self.log_view = QTextEdit()
@@ -223,23 +362,26 @@ class MainWindow(QMainWindow):
         log_filter_bar = QHBoxLayout()
         self.log_level_combo = QComboBox()
         self.log_level_combo.addItems(["ALL", "INFO", "WARN", "ERROR"])
+        self.log_level_label = QLabel(self._t("log_filter_level"))
         self.log_search_edit = QLineEdit()
-        self.log_search_edit.setPlaceholderText("搜索日志内容...")
+        self.log_search_edit.setPlaceholderText(self._t("log_search_placeholder"))
         self.log_search_edit.setObjectName("logSearch")
-        self.log_filter_btn = QPushButton("过滤")
-        self.log_reset_btn = QPushButton("重置")
-        log_filter_bar.addWidget(QLabel("级别"))
+        self.log_filter_btn = QPushButton(self._t("log_filter"))
+        self.log_reset_btn = QPushButton(self._t("log_reset"))
+        log_filter_bar.addWidget(self.log_level_label)
         log_filter_bar.addWidget(self.log_level_combo)
-        log_filter_bar.addWidget(QLabel("关键字"))
+        self.log_keyword_label = QLabel(self._t("log_filter_keyword"))
+        log_filter_bar.addWidget(self.log_keyword_label)
         log_filter_bar.addWidget(self.log_search_edit, 1)
         log_filter_bar.addWidget(self.log_filter_btn)
         log_filter_bar.addWidget(self.log_reset_btn)
 
         log_tabs = QTabWidget()
-        log_tabs.addTab(self.log_view, "控制台")
-        log_tabs.addTab(self.uart_log, "UART")
-        log_tabs.addTab(self.tcp_log, "TCP")
-        log_tabs.addTab(self.script_log, "脚本")
+        log_tabs.addTab(self.log_view, self._t("log_tab_console"))
+        log_tabs.addTab(self.uart_log, self._t("log_tab_uart"))
+        log_tabs.addTab(self.tcp_log, self._t("log_tab_tcp"))
+        log_tabs.addTab(self.script_log, self._t("log_tab_script"))
+        self.log_tabs = log_tabs
 
         # 主分割：左（导航+内容），右（日志终端）
         log_panel = QVBoxLayout()
@@ -252,7 +394,7 @@ class MainWindow(QMainWindow):
         # 控制视图：上部通信收发+控制面板，底部日志（与脚本视图一致的控制台）
         self.comm_display = QTextEdit()
         self.comm_display.setReadOnly(True)
-        self.comm_display.setPlaceholderText("通信收发显示（UART/TCP）")
+        self.comm_display.setPlaceholderText(self._t("comm_display_title"))
         self.comm_display.setMinimumHeight(180)
         self.comm_display.setStyleSheet("font-family: Consolas, 'SF Mono', 'JetBrains Mono', monospace; font-size: 12px;")
 
@@ -263,16 +405,16 @@ class MainWindow(QMainWindow):
 
         display_container = QWidget()
         display_container_layout = QVBoxLayout(display_container)
-        display_title = QLabel("通信收发")
-        display_title.setObjectName("sectionTitle")
-        display_container_layout.addWidget(display_title)
+        self.display_title = QLabel(self._t("comm_display_title"))
+        self.display_title.setObjectName("sectionTitle")
+        display_container_layout.addWidget(self.display_title)
         display_container_layout.addWidget(display_frame)
 
         control_container = QWidget()
         control_container_layout = QVBoxLayout(control_container)
-        control_title = QLabel("控制与连接")
-        control_title.setObjectName("sectionTitle")
-        control_container_layout.addWidget(control_title)
+        self.control_title = QLabel(self._t("control_panel_title"))
+        self.control_title.setObjectName("sectionTitle")
+        control_container_layout.addWidget(self.control_title)
         control_container_layout.addWidget(properties_frame)
 
         control_top = QSplitter(Qt.Horizontal)
@@ -296,7 +438,7 @@ class MainWindow(QMainWindow):
 
         # 脚本/YAML 视图：顶部左右分区，底部日志
         self.yaml_edit = QPlainTextEdit()
-        self.yaml_edit.setPlaceholderText("在此粘贴或编辑 YAML，或点击“加载 YAML”载入文件")
+        self.yaml_edit.setPlaceholderText(self._t("yaml_placeholder"))
 
         editor_frame = QFrame()
         editor_frame.setObjectName("panel")
@@ -305,9 +447,9 @@ class MainWindow(QMainWindow):
 
         editor_container = QWidget()
         editor_container_layout = QVBoxLayout(editor_container)
-        editor_title = QLabel("自动脚本编辑")
-        editor_title.setObjectName("sectionTitle")
-        editor_container_layout.addWidget(editor_title)
+        self.editor_title = QLabel(self._t("yaml_editor_title"))
+        self.editor_title.setObjectName("sectionTitle")
+        editor_container_layout.addWidget(self.editor_title)
         editor_container_layout.addWidget(editor_frame)
 
         script_actions = QFrame()
@@ -321,7 +463,7 @@ class MainWindow(QMainWindow):
         script_btn_row.addWidget(self.stop_script_btn)
         actions_layout.addLayout(script_btn_row)
 
-        self.script_state_label = QLabel("状态：空闲")
+        self.script_state_label = QLabel(self._t("script_status_idle"))
         self.script_progress = QProgressBar()
         self.script_progress.setRange(0, 100)
         actions_layout.addWidget(self.script_state_label)
@@ -330,9 +472,9 @@ class MainWindow(QMainWindow):
 
         actions_container = QWidget()
         actions_container_layout = QVBoxLayout(actions_container)
-        actions_title = QLabel("自动脚本控制")
-        actions_title.setObjectName("sectionTitle")
-        actions_container_layout.addWidget(actions_title)
+        self.actions_title = QLabel(self._t("script_actions_title"))
+        self.actions_title.setObjectName("sectionTitle")
+        actions_container_layout.addWidget(self.actions_title)
         actions_container_layout.addWidget(script_actions)
 
         script_top = QSplitter(Qt.Horizontal)
@@ -359,6 +501,7 @@ class MainWindow(QMainWindow):
             "protocols": self.main_stack.addWidget(protocols_tab),
             "control_view": self.main_stack.addWidget(control_view),
             "scripts": self.main_stack.addWidget(script_view),
+            "settings": self.main_stack.addWidget(settings_tab),
         }
 
         # 左侧容器包含标题与导航面板
@@ -389,6 +532,7 @@ class MainWindow(QMainWindow):
             app.installEventFilter(self)
 
         self.log_signal.connect(self._append_log)
+        self._apply_language()
         # 默认选中控制面板
         self._select_nav("control")
         self._apply_layout_for("control")
@@ -477,8 +621,96 @@ class MainWindow(QMainWindow):
 
             QSplitter::handle { background: #d8deea; }
             QSplitter::handle:hover { background: rgba(0,188,212,0.3); }
+
+            QScrollArea { border: none; }
+            QScrollArea > QWidget > QWidget { background: transparent; }
             """
         )
+
+    def _load_protocols(self) -> None:
+        """动态导入 protocols 包下的实现，填充注册表用于 UI 展示。"""
+        try:
+            for m in pkgutil.iter_modules(protocols_pkg.__path__):
+                if m.name in {"__init__", "base", "registry"}:
+                    continue
+                importlib.import_module(f"{protocols_pkg.__name__}.{m.name}")
+        except Exception as exc:
+            self._log(f"[WARN] 加载协议模块失败: {exc}")
+
+    def _apply_language(self) -> None:
+        self.setWindowTitle(self._t("window_title"))
+        # 顶部与按钮
+        self.run_script_btn.setText(self._t("btn_run_script"))
+        self.stop_script_btn.setText(self._t("btn_stop_script"))
+        self.load_yaml_btn.setText(self._t("btn_load_yaml"))
+        self.save_yaml_btn.setText(self._t("btn_save_yaml"))
+        # 导航
+        self.nav_title.setText(self._t("nav_title"))
+        nav_texts = {
+            "control": "nav_control",
+            "scripts": "nav_scripts",
+            "channels": "nav_channels",
+            "protocols": "nav_protocols",
+            "settings": "nav_settings",
+        }
+        for key, trans_key in nav_texts.items():
+            if key in self.nav_buttons:
+                self.nav_buttons[key].setText(self._t(trans_key))
+        # 控制面板
+        self.channel_group.setTitle(self._t("channel_group"))
+        self.mode_combo.setItemText(0, self._t("serial"))
+        self.mode_combo.setItemText(1, self._t("tcp"))
+        self.refresh_btn.setText(self._t("refresh"))
+        self.close_btn.setText(self._t("close"))
+        self.serial_label.setText(self._t("serial"))
+        self.connect_serial_btn.setText(self._t("connect_serial"))
+        self.tcp_label.setText(self._t("tcp"))
+        self.connect_tcp_btn.setText(self._t("connect_tcp"))
+        self.manual_group.setTitle(self._t("manual_group"))
+        self.display_label.setText(self._t("display_format"))
+        self.send_btn.setText(self._t("send"))
+        # 占位符/标题
+        self.input_edit.setPlaceholderText(self._t("placeholder_hex") if self.display_mode == "hex" else self._t("placeholder_text"))
+        self.comm_display.setPlaceholderText(self._t("comm_display_title"))
+        self.display_title.setText(self._t("comm_display_title"))
+        self.control_title.setText(self._t("control_panel_title"))
+        # 日志区域
+        self.log_level_label.setText(self._t("log_filter_level"))
+        self.log_keyword_label.setText(self._t("log_filter_keyword"))
+        self.log_filter_btn.setText(self._t("log_filter"))
+        self.log_reset_btn.setText(self._t("log_reset"))
+        self.log_search_edit.setPlaceholderText(self._t("log_search_placeholder"))
+        if hasattr(self, "log_tabs"):
+            self.log_tabs.setTabText(0, self._t("log_tab_console"))
+            self.log_tabs.setTabText(1, self._t("log_tab_uart"))
+            self.log_tabs.setTabText(2, self._t("log_tab_tcp"))
+            self.log_tabs.setTabText(3, self._t("log_tab_script"))
+        # 脚本视图
+        self.yaml_edit.setPlaceholderText(self._t("yaml_placeholder"))
+        self.editor_title.setText(self._t("yaml_editor_title"))
+        self.actions_title.setText(self._t("script_actions_title"))
+        if not self.script_runner or not self.script_runner.isRunning():
+            self.script_state_label.setText(self._t("script_status_idle"))
+        # 设置视图
+        self.settings_title.setText(self._t("settings_tab_title"))
+        self.info_group.setTitle(self._t("settings_info_title"))
+        self.version_key_label.setText(self._t("settings_version_label"))
+        self.version_hint.setText(self._t("settings_version_hint"))
+        self.lang_group.setTitle(self._t("settings_language_title"))
+        self.lang_label.setText(self._t("settings_language_label"))
+        self.lang_hint.setText(self._t("settings_language_hint"))
+        desired_label = self.language_label_map.get(self.current_language, "简体中文")
+        self.language_combo.blockSignals(True)
+        idx = self.language_combo.findText(desired_label)
+        if idx >= 0:
+            self.language_combo.setCurrentIndex(idx)
+        self.language_combo.blockSignals(False)
+        # tab 标题
+        self.channels_title.setText(self._t("channels_tab_title"))
+        self.protocols_title.setText(self._t("protocols_tab_title"))
+        self._render_protocol_cards()
+        # 视图内可能存在的显示模式占位符刷新
+        self._change_display_mode()
 
     # -------------------- 辅助视图 --------------------
     def _create_status_label(self, text: str, color: str) -> QLabel:
@@ -491,14 +723,22 @@ class MainWindow(QMainWindow):
     def _add_card(self, parent_layout: QVBoxLayout, title: str, status: str, status_color: str, lines: List[str]) -> None:
         card = QFrame()
         card.setObjectName("card")
+        card.setMinimumHeight(96)
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        card.setContentsMargins(8, 8, 8, 8)
         card_layout = QVBoxLayout(card)
         header = QHBoxLayout()
-        header.addWidget(QLabel(title))
+        title_label = QLabel(title)
+        title_label.setWordWrap(True)
+        header.addWidget(title_label)
         header.addStretch()
         header.addWidget(self._create_status_label(status, status_color))
         card_layout.addLayout(header)
         for line in lines:
-            card_layout.addWidget(QLabel(line))
+            lbl = QLabel(line)
+            lbl.setWordWrap(True)
+            lbl.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+            card_layout.addWidget(lbl)
         parent_layout.addWidget(card)
 
     def _create_divider(self) -> QFrame:
@@ -508,12 +748,92 @@ class MainWindow(QMainWindow):
         line.setStyleSheet("color: #d8deea;")
         return line
 
+    def _render_protocol_cards(self) -> None:
+        if not hasattr(self, "protocols_layout"):
+            return
+        layout = self.protocols_layout
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+
+        registry = ProtocolRegistry.list()
+        if not registry:
+            empty_label = QLabel(self._t("protocols_empty"))
+            empty_label.setStyleSheet("color: #4b5565;")
+            layout.addWidget(empty_label)
+            layout.addStretch()
+            return
+
+        for name, cls in sorted(registry.items(), key=lambda kv: kv[0]):
+            doc = (cls.__doc__ or "").strip().splitlines()[0] if cls.__doc__ else ""
+            desc = doc if doc else self._t("protocol_desc_placeholder")
+            lines = [
+                self._t("protocol_type_label").format(type=cls.__name__),
+                desc,
+            ]
+            self._add_card(
+                layout,
+                name,
+                self._t("protocol_status_available"),
+                "#4cc38a",
+                lines,
+            )
+        layout.addStretch()
+
+    def _build_settings_tab(self) -> QWidget:
+        tab = QWidget()
+        outer = QVBoxLayout(tab)
+        self.settings_title = QLabel(self._t("settings_tab_title"))
+        self.settings_title.setObjectName("sectionTitle")
+        outer.addWidget(self.settings_title)
+
+        panel = QFrame()
+        panel.setObjectName("panel")
+        panel_layout = QVBoxLayout(panel)
+
+        self.info_group = QGroupBox(self._t("settings_info_title"))
+        info_form = QFormLayout(self.info_group)
+        self.version_label = QLabel(self.app_version)
+        self.version_key_label = QLabel(self._t("settings_version_label"))
+        info_form.addRow(self.version_key_label, self.version_label)
+        self.version_hint = QLabel(self._t("settings_version_hint"))
+        self.version_hint.setStyleSheet("color: #4b5565;")
+        self.version_hint.setWordWrap(True)
+
+        self.lang_group = QGroupBox(self._t("settings_language_title"))
+        lang_layout = QVBoxLayout(self.lang_group)
+        lang_row = QHBoxLayout()
+        lang_row.setContentsMargins(0, 0, 0, 0)
+        lang_row.setSpacing(10)
+        self.lang_label = QLabel(self._t("settings_language_label"))
+        self.language_combo = QComboBox()
+        self.language_combo.addItems(["简体中文", "English"])
+        lang_row.addWidget(self.lang_label)
+        lang_row.addWidget(self.language_combo, 1)
+        lang_row.addStretch()
+        lang_layout.addLayout(lang_row)
+        self.lang_hint = QLabel(self._t("settings_language_hint"))
+        self.lang_hint.setStyleSheet("color: #4b5565;")
+        self.lang_hint.setWordWrap(True)
+        lang_layout.addWidget(self.lang_hint)
+
+        panel_layout.addWidget(self.info_group)
+        panel_layout.addWidget(self.version_hint)
+        panel_layout.addWidget(self._create_divider())
+        panel_layout.addWidget(self.lang_group)
+        panel_layout.addStretch()
+
+        outer.addWidget(panel)
+        outer.addStretch()
+        return tab
+
     def _build_channels_tab(self) -> QWidget:
         tab = QWidget()
         outer = QVBoxLayout(tab)
-        title = QLabel("通道列表")
-        title.setObjectName("sectionTitle")
-        outer.addWidget(title)
+        self.channels_title = QLabel(self._t("channels_tab_title"))
+        self.channels_title.setObjectName("sectionTitle")
+        outer.addWidget(self.channels_title)
 
         frame = QFrame()
         frame.setObjectName("panel")
@@ -548,40 +868,25 @@ class MainWindow(QMainWindow):
     def _build_protocols_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        title = QLabel("协议驱动")
-        title.setObjectName("sectionTitle")
-        layout.addWidget(title)
-        self._add_card(
-            layout,
-            "XMODEM 驱动",
-            "启用",
-            "#4cc38a",
-            [
-                "特性：CRC、块重传、EOT",
-                "用途：固件写入/升级",
-            ],
-        )
-        self._add_card(
-            layout,
-            "Modbus 驱动",
-            "可用",
-            "#4cc38a",
-            [
-                "特性：读写寄存器/线圈",
-                "用途：设备调试与监控",
-            ],
-        )
-        self._add_card(
-            layout,
-            "自定义驱动",
-            "未配置",
-            "#f14d50",
-            [
-                "特性：用户扩展",
-                "用途：按需加载自定义协议",
-            ],
-        )
-        layout.addStretch()
+        self.protocols_title = QLabel(self._t("protocols_tab_title"))
+        self.protocols_title.setObjectName("sectionTitle")
+        layout.addWidget(self.protocols_title)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.protocols_frame = QWidget()
+        self.protocols_frame.setObjectName("panel")
+        self.protocols_frame.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        self.protocols_layout = QVBoxLayout(self.protocols_frame)
+        self.protocols_layout.setSpacing(10)
+        self.protocols_layout.setContentsMargins(14, 14, 14, 14)
+        self.protocols_layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        scroll.setWidget(self.protocols_frame)
+
+        layout.addWidget(scroll)
+        self._render_protocol_cards()
         return tab
 
     # -------------------- 事件绑定 --------------------
@@ -593,6 +898,7 @@ class MainWindow(QMainWindow):
         self.connect_tcp_btn.clicked.connect(self._connect_tcp)
         self.send_btn.clicked.connect(self._send_data)
         self.display_combo.currentIndexChanged.connect(self._change_display_mode)
+        self.language_combo.currentTextChanged.connect(self._on_language_changed)
         self.log_filter_btn.clicked.connect(self._apply_log_filter)
         self.log_reset_btn.clicked.connect(self._reset_log_filter)
 
@@ -615,7 +921,7 @@ class MainWindow(QMainWindow):
         self._log(f"检测到串口: {ports}" if ports else "未检测到可用串口")
 
     def _toggle_manual_comm_mode(self) -> None:
-        is_serial = self.mode_combo.currentText() == "串口"
+        is_serial = (self.mode_combo.currentData() == "serial")
         serial_enabled = is_serial and self.mode == "manual"
         tcp_enabled = (not is_serial) and self.mode == "manual"
         self.port_combo.setEnabled(serial_enabled)
@@ -631,20 +937,26 @@ class MainWindow(QMainWindow):
         self.tcp_label.setVisible(not is_serial)
 
     def _change_display_mode(self) -> None:
-        self.display_mode = self.display_combo.currentText().lower()
+        mode = self.display_combo.currentData() or self.display_combo.currentText().lower()
+        self.display_mode = str(mode).lower()
         self._text_decoder = codecs.getincrementaldecoder("utf-8")()
         self._rx_text_buffer = ""
         if self.display_mode == "hex":
-            self.input_edit.setPlaceholderText("输入 HEX（如：55 AA 01）")
+            self.input_edit.setPlaceholderText(self._t("placeholder_hex"))
         else:
-            self.input_edit.setPlaceholderText("输入 UTF-8 文本")
+            self.input_edit.setPlaceholderText(self._t("placeholder_text"))
+
+    def _on_language_changed(self, language: str) -> None:
+        self.current_language = self.language_map.get(language, "zh")
+        self._apply_language()
+        self._log(self._t("language_changed").format(lang=language))
 
     def _set_display_mode(self, mode: str) -> None:
         mode = (mode or "").lower()
         if mode not in {"hex", "text"}:
             return
         target_text = "HEX" if mode == "hex" else "Text"
-        if self.display_combo.currentText().lower() == mode:
+        if (self.display_combo.currentData() or "").lower() == mode:
             self._change_display_mode()
         else:
             idx = self.display_combo.findText(target_text)
@@ -809,7 +1121,7 @@ class MainWindow(QMainWindow):
         self._switch_to_manual_mode()
 
     def _update_script_state(self, state: str) -> None:
-        self.script_state_label.setText(f"状态：{state}")
+        self.script_state_label.setText(self._t("script_status_template").format(state=state))
 
     # -------------------- 日志/模式控制 --------------------
     def _log(self, message: str) -> None:
@@ -1074,9 +1386,29 @@ class MainWindow(QMainWindow):
         elif key == "scripts":
             self.main_stack.setCurrentIndex(self.stack_indices["scripts"])
             self._mount_log_to(self.script_log_host)
+        elif key == "settings":
+            self.main_stack.setCurrentIndex(self.stack_indices["settings"])
         else:
             self.main_stack.setCurrentIndex(self.stack_indices["channels"])
             self._mount_log_to(self.control_log_host)
+
+    def _get_app_version(self) -> str:
+        version_file = Path(__file__).resolve().parent.parent / "VERSION"
+        if version_file.exists():
+            version_text = version_file.read_text(encoding="utf-8").strip()
+            if version_text:
+                return version_text
+        try:
+            return (
+                subprocess.check_output(
+                    ["git", "describe", "--tags", "--always"],
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                ).strip()
+                or "dev"
+            )
+        except Exception:
+            return "dev"
 
     def _mount_log_to(self, host: QWidget) -> None:
         if not hasattr(self, "log_container"):
