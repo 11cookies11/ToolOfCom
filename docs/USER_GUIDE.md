@@ -103,6 +103,53 @@ stateDiagram-v2
 - 协议动作：XMODEM/Modbus 等（下文详述）。
 - 自定义动作：在 Python 中 `ActionRegistry.register("name", fn)` 注册，`fn(ctx, args)` 使用 `ctx.channel_write` / `ctx.set_var` / `ctx.vars_snapshot`。
 
+### 8.1 Schema 帧动作（自定义帧 + 动作注册）
+1) 定义协议帧 schema（示例）：
+   ```yaml
+   frames:
+     req_read:
+       header: AA55
+       tail: 0D0A
+       crc: crc16_modbus
+       fields:
+         - { name: addr, type: u16, endian: little }
+         - { name: length, type: u16, endian: little }
+     rsp_read:
+       header: AA55
+       tail: 0D0A
+       crc: crc16_modbus
+       fields:
+         - { name: status, type: u8 }
+         - { name: data, type: bytes, length: 16 }
+   ```
+2) 在 DSL 中发送/接收自定义帧（动作已在运行器/UI 启动时注册）：
+   ```yaml
+   - action: send_frame
+     args:
+       schema: ./proto_schema.yaml
+       frame: req_read
+       values: { addr: 0x1234, length: 16 }
+   - action: expect_frame
+     args:
+       schema: ./proto_schema.yaml
+       frame: rsp_read
+       timeout: 2
+       save_as: rsp
+   ```
+   - `send_frame`：按 schema 组帧并写入通道，`last_frame_tx` 保存 hex 和字段值。
+   - `expect_frame`：按尾部或固定长度读取并解析，结果存 `save_as`（默认 `last_frame_rx`），原始 hex 存 `last_frame_rx_raw`。
+3) 注册更多自定义动作（同样在启动时生效）：
+   ```python
+   from actions.registry import ActionRegistry
+
+   def my_action(ctx, args):
+       # 例如写入自定义数据或组合多步逻辑
+       ctx.channel_write(b"hello")
+
+   ActionRegistry.register("my_action", my_action)
+   ```
+   之后 DSL 可直接 `- action: my_action` 调用。
+
 ## 9. XMODEM 动作
 - `send_xmodem_block`：发送指定块号（128B，自动 0x1A 填充），参数 `block: "$block"`。
 - `send_eot`：发送 EOT 结束。
