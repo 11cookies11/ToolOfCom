@@ -143,6 +143,31 @@ stateDiagram-v2
    ```
    Then call in DSL: `- action: my_action`.
 
+### 8.3 Charts (PyQtGraph multi-curve/multi-window)
+- Config: top-level `ui.charts`, `bind` is data key, `group` shares a window, `separate: true` opens its own window.
+  ```yaml
+  ui:
+    charts:
+      - id: temp
+        title: "Temperature"
+        bind: temp
+        group: main
+      - id: current
+        title: "Current"
+        bind: current
+        group: main
+      - id: voltage
+        title: "Voltage"
+        bind: voltage
+        separate: true
+  ```
+- Push data: `chart_add` action (Qt GUI runner required).
+  ```yaml
+  - action: chart_add
+    args: { bind: temp, value: "$temp_val", ts: "$now/1000" }  # ts seconds; defaults to now if omitted
+  ```
+- Behavior: builds one or more windows per `group/separate`; UI thread refreshes every 30ms with double buffering.
+
 ## 9. XMODEM Actions
 - `send_xmodem_block`: send specified block (128B, padded with 0x1A), arg `block: "$block"`.
 - `send_eot`: send EOT to finish.
@@ -316,7 +341,7 @@ state_machine:
 ## 16. Appendix
 - Keywords: `version`, `vars`, `channels`, `state_machine`, `initial`, `states`, `do`, `on_event`, `timeout`, `on_timeout`, `when`, `goto`, `else_goto`
 - Built-in vars: `$now`, `$event`, user vars (vars + set); examples include `file`, `file.block_count`.
-- Built-in actions: `set`, `log`, `wait`, `wait_for_event`; protocol actions: `send_xmodem_block`, `send_eot`; extensible: `modbus_read`, `modbus_write`, `send_frame`, `expect_frame`, etc.
+- Built-in actions: `set`, `log`, `wait`, `wait_for_event`; meter actions: `meter_start`, `meter_add`, `meter_stop`; chart actions: `chart_add`; protocol actions: `send_xmodem_block`, `send_eot`; extensible: `modbus_read`, `modbus_write`, `send_frame`, `expect_frame`, etc.
 - Expressions: arithmetic/comparison/logic; vars `$var`/`$a.b`; built-ins `$now/$event`.
 - Channel params: UART `device`, `baudrate`; TCP `host`, `port`, `timeout`.
 - Core BNF (simplified):

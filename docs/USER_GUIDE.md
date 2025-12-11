@@ -150,6 +150,31 @@ stateDiagram-v2
    ```
    之后 DSL 可直接 `- action: my_action` 调用。
 
+### 8.2 曲线窗口（PyQtGraph，多曲线/多窗口）
+- 配置：顶层 `ui.charts`，`bind` 为数据 key，`group` 同窗显示，`separate: true` 独立窗口。
+  ```yaml
+  ui:
+    charts:
+      - id: temp
+        title: "Temperature"
+        bind: temp
+        group: main
+      - id: current
+        title: "Current"
+        bind: current
+        group: main
+      - id: voltage
+        title: "Voltage"
+        bind: voltage
+        separate: true
+  ```
+- 推送数据：`chart_add` 动作（需在 Qt GUI 运行器）。
+  ```yaml
+  - action: chart_add
+    args: { bind: temp, value: "$temp_val", ts: "$now/1000" }  # ts 秒，省略则用当前时间
+  ```
+- 行为：按 `group/separate` 自动建一个或多个窗口；UI 线程每 30ms 刷新，双缓冲平滑绘制。
+
 ## 9. XMODEM 动作
 - `send_xmodem_block`：发送指定块号（128B，自动 0x1A 填充），参数 `block: "$block"`。
 - `send_eot`：发送 EOT 结束。
@@ -323,7 +348,7 @@ state_machine:
 ## 16. 附录
 - 关键字：`version`, `vars`, `channels`, `state_machine`, `initial`, `states`, `do`, `on_event`, `timeout`, `on_timeout`, `when`, `goto`, `else_goto`
 - 内置变量：`$now`，`$event`，用户变量（vars + set 生成）；示例中 `file`、`file.block_count` 可由文件元信息动作填充。
-- 内置动作：`set`，`log`，`wait`，`wait_for_event`；协议动作：`send_xmodem_block`，`send_eot`；（可扩展：`modbus_read`，`modbus_write` 等）
+- 内置动作：`set`，`log`，`wait`，`wait_for_event`；仪表动作：`meter_start`，`meter_add`，`meter_stop`；曲线动作：`chart_add`；协议动作：`send_xmodem_block`，`send_eot`；（可扩展：`modbus_read`，`modbus_write` 等）
 - 表达式：算术/比较/逻辑，变量 `$var`/`$a.b`，内置 `$now/$event`。
 - 通道参数：UART `device`、`baudrate`；TCP `host`、`port`、`timeout`。
 - 简化 BNF（核心）：
