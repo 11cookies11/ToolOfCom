@@ -14,7 +14,13 @@ ToolOfCOM is a communication runtime engine that transforms UART / TCP / Modbus 
 
 [中文](./README.md)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+<p align="center">
+  <a href="https://github.com/11cookies11/ToolOfCom/actions/workflows/ci.yml"><img alt="build" src="https://img.shields.io/github/actions/workflow/status/11cookies11/ToolOfCom/ci.yml?branch=main&label=build&style=for-the-badge"/></a>
+  <a href="https://github.com/11cookies11/ToolOfCom/tags"><img alt="version" src="https://img.shields.io/github/v/tag/11cookies11/ToolOfCom?label=version&style=for-the-badge"/></a>
+  <a href="./LICENSE"><img alt="license" src="https://img.shields.io/github/license/11cookies11/ToolOfCom?style=for-the-badge"/></a>
+  <img alt="platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-orange?style=for-the-badge"/>
+  <img alt="language" src="https://img.shields.io/badge/language-Python%20%2B%20Qt-7F3FBF?style=for-the-badge"/>
+</p>
 
 ## 🌐 Overview
 

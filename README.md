@@ -14,7 +14,13 @@ ToolOfCom 是一个通信运行时引擎，让 UART / TCP / Modbus / XMODEM 的�
 
 [EN](./README_EN.md)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+<p align="center">
+  <a href="https://github.com/11cookies11/ToolOfCom/actions/workflows/ci.yml"><img alt="build" src="https://img.shields.io/github/actions/workflow/status/11cookies11/ToolOfCom/ci.yml?branch=main&label=build&style=for-the-badge"/></a>
+  <a href="https://github.com/11cookies11/ToolOfCom/tags"><img alt="version" src="https://img.shields.io/github/v/tag/11cookies11/ToolOfCom?label=version&style=for-the-badge"/></a>
+  <a href="./LICENSE"><img alt="license" src="https://img.shields.io/github/license/11cookies11/ToolOfCom?style=for-the-badge"/></a>
+  <img alt="platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-orange?style=for-the-badge"/>
+  <img alt="language" src="https://img.shields.io/badge/language-Python%20%2B%20Qt-7F3FBF?style=for-the-badge"/>
+</p>
 
 ## 🌐 项目简介（Overview）
 
@@ -262,15 +268,16 @@ state_machine:
 
 
 
-## 🤝 ?????Contribute?
+## 🤝 参与贡献（Contribute）
 
-???? PR?Issue ????????ToolOfCOM ???????????????????
+欢迎提交 PR、Issue，以及协议扩展插件。
+ToolOfCOM 的长期目标是成为 **通信协议的执行层**。
 
 ---
 
 
 
-## 📄 ????License?
+## 📄 许可证（License）
 
 This project is licensed under the MIT License.  
 See the [LICENSE](./LICENSE) file for details.
@@ -279,6 +286,6 @@ See the [LICENSE](./LICENSE) file for details.
 
 
 
-## ????
+## 📚 了解更多（Learn More）
 
-**??? `docs/USER_GUIDE.md` ???? DSL ??????????????????????????**
+**详见 `docs/USER_GUIDE.md`，包含完整 DSL 语法、状态机语义、协议动作、扩展方式与最佳实践。**
