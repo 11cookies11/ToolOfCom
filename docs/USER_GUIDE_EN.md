@@ -168,6 +168,16 @@ stateDiagram-v2
   ```
 - Behavior: builds one or more windows per `group/separate`; UI thread refreshes every 30ms with double buffering.
 
+## 8.3 Non-blocking Controls (ui.controls)
+- `ui.controls` defines separate, non-modal input panels. Buttons emit EventBus events via `emit`; FSM consumes via existing `on_event` / `wait_for_event` (no blocking).
+
+## 8.4 Declarative Layout (ui.layout, stage 1)
+- Optional YAML structure that places existing charts/controls into a single window using `split` (horizontal/vertical) and leaf references (`charts`/`controls`); no docking/drag-drop/geometry.
+
+## 8.5 3D Chart (scatter3d)
+- `ui.charts` supports `type: scatter3d` with `bind_x`/`bind_y`/`bind_z`, and `chart_add3d` to push points.
+- Requires `pyqtgraph.opengl` (typically `PyOpenGL`).
+
 ## 9. XMODEM Actions
 - `send_xmodem_block`: send specified block (128B, padded with 0x1A), arg `block: "$block"`.
 - `send_eot`: send EOT to finish.
@@ -177,10 +187,10 @@ Typical flow: wait for "C" → send block → wait ACK/NAK → increment block �
 Currently examples are XMODEM-focused; YMODEM can be added similarly with actions like `send_ymodem_header` / `send_ymodem_block` / `send_ymodem_eot`.
 
 ## 11. Modbus (RTU/ASCII/TCP) Actions
-- Reserved actions: `modbus_read` / `modbus_write`
+- Reserved actions: `modbus_read` / `modbus_write` (not implemented in current DSL runner; docs placeholder)
   - Args: `protocol: rtu|ascii|tcp`, `function`, `address`, `quantity`, `values` (for write), `unit_id`.
 - Differences: RTU (CRC16, binary); ASCII (LRC, text frame); TCP (MBAP, no CRC).
-- Add to action registry and compose into your state machine.
+- Note: Modbus protocol drivers exist under `protocols/modbus_*.py` and are callable from `main_runtime.py` tasks mode; adding DSL actions requires registering them.
 
 ## 12. Event System
 - Sources: channel `read_event` (UART/TCP bytes; default decoded to text, fallback HEX string).
@@ -261,6 +271,7 @@ state_machine:
 ```
 
 ### 13.3 Modbus Poll & Write
+> Note: `modbus_read` / `modbus_write` are not implemented in the current DSL runner; this is a placeholder example.
 ```yaml
 vars:
   retries: 0
@@ -297,6 +308,7 @@ state_machine:
 ```
 
 ### 13.4 Combined (upgrade then write register)
+> Note: `modbus_read` / `modbus_write` are not implemented in the current DSL runner; this is a placeholder example.
 ```yaml
 vars: { block: 1, file_path: ./fw.bin }
 channels:
@@ -341,7 +353,8 @@ state_machine:
 ## 16. Appendix
 - Keywords: `version`, `vars`, `channels`, `state_machine`, `initial`, `states`, `do`, `on_event`, `timeout`, `on_timeout`, `when`, `goto`, `else_goto`
 - Built-in vars: `$now`, `$event`, user vars (vars + set); examples include `file`, `file.block_count`.
-- Built-in actions: `set`, `log`, `wait`, `wait_for_event`; meter actions: `meter_start`, `meter_add`, `meter_stop`; chart actions: `chart_add`; protocol actions: `send_xmodem_block`, `send_eot`; extensible: `modbus_read`, `modbus_write`, `send_frame`, `expect_frame`, etc.
+- Built-in actions: `set`, `log`, `wait`, `wait_for_event`; chart actions: `chart_add`, `chart_add3d`; schema actions: `send_frame`, `expect_frame`; protocol actions: `send_xmodem_block`, `send_eot`.
+- Note: `meter_start/meter_add/meter_stop` and `modbus_read/modbus_write` are not implemented in the current DSL runner (docs placeholders).
 - Expressions: arithmetic/comparison/logic; vars `$var`/`$a.b`; built-ins `$now/$event`.
 - Channel params: UART `device`, `baudrate`; TCP `host`, `port`, `timeout`.
 - Core BNF (simplified):

@@ -194,6 +194,35 @@ stateDiagram-v2
 - 新增：`text`/`string`（可编辑文本框，可用 `default` 显示初始值，`placeholder` 提示）。
 - 行为：按钮点击时收集输入为 dict 并以 EventBus 发布 `emit` 事件；FSM 直接用既有 `on_event` / `wait_for_event`（`$event` 为 payload，`$event_name` 为事件名）。
 
+### 8.4 声明式布局（ui.layout，首版）
+- 目的：用 YAML 将已有 `ui.charts` / `ui.controls` 组织到**单一窗口**中；不提供拖拽/停靠/布局持久化。
+- 语法：`split`（horizontal/vertical）+ `leaf`（`charts`/`controls` 引用）。
+  ```yaml
+  ui:
+    layout:
+      split: horizontal
+      left:  { charts: [temp] }
+      right: { controls: [tx_params], charts: [scatter3d] }
+  ```
+- 规则：只描述结构（无尺寸/样式/绝对坐标）；引用的 ID 必须在 `ui.charts`/`ui.controls` 中已定义；未定义 `ui.layout` 时沿用原行为（charts/controls 各自独立窗口）。
+
+### 8.5 3D 图（scatter3d，首版）
+- 配置：在 `ui.charts` 中设置 `type: scatter3d`，并提供 `bind_x`/`bind_y`/`bind_z`。
+  ```yaml
+  - id: scatter3d
+    title: "3D Points"
+    type: scatter3d
+    bind_x: x
+    bind_y: y
+    bind_z: z
+  ```
+- 推送数据：使用 `chart_add3d` 动作。
+  ```yaml
+  - action: chart_add3d
+    args: { x: "$x", y: "$y", z: "$z", ts: "$now/1000", bind_x: x, bind_y: y, bind_z: z }
+  ```
+- 依赖：需要 `pyqtgraph.opengl`（通常安装 `PyOpenGL`/`PyOpenGL_accelerate`）；缺失时会显示 “3D unavailable …”。
+
 ## 9. XMODEM 动作
 - `send_xmodem_block`：发送指定块号（128B，自动 0x1A 填充），参数 `block: "$block"`。
 - `send_eot`：发送 EOT 结束。
@@ -203,10 +232,10 @@ stateDiagram-v2
 当前示例主要提供 XMODEM；YMODEM 可类比扩展：发送 header、数据块、EOT（可参考 XMODEM 动作并新增 `send_ymodem_header` / `send_ymodem_block` / `send_ymodem_eot` 动作）。
 
 ## 11. Modbus（RTU/ASCII/TCP）动作
-- 预留动作：`modbus_read` / `modbus_write`
+- 预留动作：`modbus_read` / `modbus_write`（当前 DSL Runner 未实现，仅文档占位）
   - 参数：`protocol: rtu|ascii|tcp`，`function`，`address`，`quantity`，`values`（写），`unit_id`。
 - 差异：RTU（CRC16，二进制）；ASCII（LRC，文本帧）；TCP（MBAP，无 CRC）。
-可在动作注册中添加并编排到状态机。
+说明：仓库中已实现 Modbus 协议驱动（`protocols/modbus_*.py`），并可在 `main_runtime.py` 的 tasks 模式中调用；若要在 DSL 中使用需新增对应动作注册。
 
 ## 12. 事件系统（Events）
 - 来源：通道 `read_event`（UART/TCP 读取到的字节，默认字符；无法解码则 HEX 字符串）。
@@ -287,6 +316,7 @@ state_machine:
 ```
 
 ### 13.3 Modbus 轮询读写
+> 注：`modbus_read` / `modbus_write` 当前 DSL Runner 未实现，本段示例为文档预留模板。
 ```yaml
 vars:
   retries: 0
@@ -323,6 +353,7 @@ state_machine:
 ```
 
 ### 13.4 组合示例（升级后写寄存器）
+> 注：`modbus_read` / `modbus_write` 当前 DSL Runner 未实现，本段示例为文档预留模板。
 ```yaml
 vars: { block: 1, file_path: ./fw.bin }
 channels:
@@ -367,7 +398,8 @@ state_machine:
 ## 16. 附录
 - 关键字：`version`, `vars`, `channels`, `state_machine`, `initial`, `states`, `do`, `on_event`, `timeout`, `on_timeout`, `when`, `goto`, `else_goto`
 - 内置变量：`$now`，`$event`，用户变量（vars + set 生成）；示例中 `file`、`file.block_count` 可由文件元信息动作填充。
-- 内置动作：`set`，`log`，`wait`，`wait_for_event`；仪表动作：`meter_start`，`meter_add`，`meter_stop`；曲线动作：`chart_add`；协议动作：`send_xmodem_block`，`send_eot`；（可扩展：`modbus_read`，`modbus_write` 等）
+- 内置动作：`set`，`log`，`wait`，`wait_for_event`；曲线动作：`chart_add`，`chart_add3d`；schema 帧动作：`send_frame`，`expect_frame`；协议动作：`send_xmodem_block`，`send_eot`。
+- 说明：`meter_start/meter_add/meter_stop` 与 `modbus_read/modbus_write` 当前未在 DSL Runner 中实现（文档占位/预留字段）。
 - 表达式：算术/比较/逻辑，变量 `$var`/`$a.b`，内置 `$now/$event`。
 - 通道参数：UART `device`、`baudrate`；TCP `host`、`port`、`timeout`。
 - 简化 BNF（核心）：
