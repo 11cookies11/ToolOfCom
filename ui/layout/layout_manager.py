@@ -3,14 +3,15 @@ from __future__ import annotations
 from typing import Dict, Iterable, List, Optional
 
 try:
-    from PySide6.QtCore import Qt
+    from PySide6.QtCore import Qt, QTimer
     from PySide6.QtWidgets import QMainWindow, QSplitter, QVBoxLayout, QWidget, QLabel
 except ImportError:  # pragma: no cover
-    from PyQt6.QtCore import Qt  # type: ignore
+    from PyQt6.QtCore import Qt, QTimer  # type: ignore
     from PyQt6.QtWidgets import QMainWindow, QSplitter, QVBoxLayout, QWidget, QLabel  # type: ignore
 
 from dsl.ast_nodes import ChartSpec, ControlSpec, LayoutNode
 from ui.charts.chart_widget import ChartWidget
+from ui.charts.chart_widget_3d import Chart3DWidget
 from ui.controls.control_window import ControlWidget
 
 
@@ -41,10 +42,15 @@ class LayoutManager:
         self.chart_widgets: Dict[str, ChartWidget] = {}
         self.control_widgets: Dict[str, ControlWidget] = {}
         self.bind_map: Dict[str, List[ChartWidget]] = {}
+        self.scatter_specs: Dict[str, List[tuple[str, str, str, Chart3DWidget]]] = {}
 
         root_widget = self._build_widget(root)
         self.window = LayoutWindow(root_widget, title=title)
         self.window.show()
+        self.timer = QTimer(self.window)
+        self.timer.setInterval(50)
+        self.timer.timeout.connect(self._tick)
+        self.timer.start()
 
     def _build_widget(self, node: LayoutNode) -> QWidget:
         if node.type == "split":
@@ -63,9 +69,15 @@ class LayoutManager:
             if not spec:
                 layout.addWidget(QLabel(f"Unknown chart: {cid}"))
                 continue
-            widget = ChartWidget(title=spec.title, max_points=spec.max_points)
-            self.chart_widgets[cid] = widget
-            self.bind_map.setdefault(spec.bind, []).append(widget)
+            widget: QWidget
+            if getattr(spec, "chart_type", "line") == "scatter3d":
+                widget = Chart3DWidget(title=spec.title, max_points=spec.max_points)
+                if spec.bind_x and spec.bind_y and spec.bind_z:
+                    self.scatter_specs.setdefault(cid, []).append((spec.bind_x, spec.bind_y, spec.bind_z, widget))  # type: ignore[arg-type]
+            else:
+                widget = ChartWidget(title=spec.title, max_points=spec.max_points)
+                self.chart_widgets[cid] = widget  # type: ignore[assignment]
+                self.bind_map.setdefault(spec.bind, []).append(widget)  # type: ignore[arg-type]
             layout.addWidget(widget)
 
         for ctrl_id in node.controls:
@@ -96,9 +108,29 @@ class LayoutManager:
                 continue
             for w in widgets:
                 w.push_point(ts, val_f)
+        for items in self.scatter_specs.values():
+            for bx, by, bz, widget in items:
+                if bx in payload and by in payload and bz in payload:
+                    try:
+                        widget.push_point(float(payload[bx]), float(payload[by]), float(payload[bz]))
+                    except Exception:
+                        continue
 
     def close_all(self) -> None:
         try:
             self.window.close()
         except Exception:
             pass
+        if hasattr(self, "timer") and self.timer.isActive():  # type: ignore[attr-defined]
+            self.timer.stop()  # type: ignore[attr-defined]
+
+    def _tick(self) -> None:
+        for chart in list(self.chart_widgets.values()):
+            if hasattr(chart, "swap_buffers"):
+                chart.swap_buffers()
+            if hasattr(chart, "update_chart"):
+                chart.update_chart()
+        for items in self.scatter_specs.values():
+            for _, _, _, widget in items:
+                if hasattr(widget, "update_chart"):
+                    widget.update_chart()

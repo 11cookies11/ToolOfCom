@@ -33,6 +33,10 @@ class ChartSpec:
     id: str
     title: str
     bind: str
+    chart_type: str = "line"  # line | scatter3d
+    bind_x: Optional[str] = None
+    bind_y: Optional[str] = None
+    bind_z: Optional[str] = None
     group: Optional[str] = None
     separate: bool = False
     max_points: int = 1000

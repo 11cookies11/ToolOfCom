@@ -67,11 +67,22 @@ def _parse_ui(ui_data: Dict[str, Any]) -> UIConfig:
         separate = bool(item.get("separate", False))
         if group and separate:
             raise ValueError(f"ui.charts[{idx}] cannot have both group and separate")
+        chart_type = str(item.get("type", "line")).lower()
+        bind_x = item.get("bind_x")
+        bind_y = item.get("bind_y")
+        bind_z = item.get("bind_z")
+        if chart_type == "scatter3d":
+            if not (bind_x and bind_y and bind_z):
+                raise ValueError(f"ui.charts[{idx}] scatter3d requires bind_x/bind_y/bind_z")
         charts.append(
             ChartSpec(
                 id=cid,
                 title=str(item.get("title", cid)),
                 bind=str(bind),
+                chart_type=chart_type,
+                bind_x=str(bind_x) if bind_x else None,
+                bind_y=str(bind_y) if bind_y else None,
+                bind_z=str(bind_z) if bind_z else None,
                 group=str(group) if group else None,
                 separate=separate,
                 max_points=int(item.get("max_points", 1000)),

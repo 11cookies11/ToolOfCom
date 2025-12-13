@@ -14,9 +14,17 @@ ui:
     - id: temp
       title: "Temperature"
       bind: temp
+      type: line
     - id: current
       title: "Current"
       bind: current
+      type: line
+    - id: scatter3d
+      title: "3D Points"
+      type: scatter3d
+      bind_x: x
+      bind_y: y
+      bind_z: z
   controls:
     - id: tx_params
       title: "Parameters"
@@ -34,6 +42,7 @@ ui:
       charts: [temp, current]
     right:
       controls: [tx_params]
+      charts: [scatter3d]
 
 state_machine:
   initial: loop
@@ -43,10 +52,15 @@ state_machine:
         - set:
             temp_val: "$temp_val + 0.5"
             current_val: "$current_val + 0.2"
+            x: "$temp_val"
+            y: "$current_val"
+            z: "$temp_val - $current_val"
         - action: chart_add
           args: { bind: temp, value: "$temp_val", ts: "$now/1000" }
         - action: chart_add
           args: { bind: current, value: "$current_val", ts: "$now/1000" }
+        - action: chart_add3d
+          args: { x: "$x", y: "$y", z: "$z", ts: "$now/1000", bind_x: x, bind_y: y, bind_z: z }
         - wait: 500
       on_event:
         ui.param.apply: apply_params
