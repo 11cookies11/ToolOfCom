@@ -7,7 +7,7 @@ from runtime.runner import run_dsl
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="ToolOfCom DSL 执行入口")
+    parser = argparse.ArgumentParser(description="ProtoFlow DSL 执行入口")
     parser.add_argument("script", help="DSL YAML 文件路径")
     args = parser.parse_args(argv)
     return run_dsl(args.script)

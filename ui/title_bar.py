@@ -104,7 +104,7 @@ class TitleBar(QFrame):
         logo.setPixmap(self._build_logo_pixmap())
         logo.setFixedSize(22, 22)
 
-        title = QLabel("ToolOfCom")
+        title = QLabel("ProtoFlow")
         title.setObjectName("titleText")
 
         layout.addWidget(logo)

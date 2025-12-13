@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="./docs/pictures/logo.png" width="200" alt="ToolOfCom logo"/>
+  <img src="./docs/pictures/logo.png" width="200" alt="ProtoFlow logo"/>
 </p>
 
 <p align="center">
   <b>Stop sending bytes. Start executing protocols.</b>
 </p>
 <p align="center">
-ToolOfCOM is a communication runtime engine that transforms UART / TCP / Modbus / XMODEM interactions from scattered byte operations into programmable and executable protocol workflows.
+ProtoFlow is a communication runtime engine that transforms UART / TCP / Modbus / XMODEM interactions from scattered byte operations into programmable and executable protocol workflows.
 </p>
 
 
@@ -15,18 +15,18 @@ ToolOfCOM is a communication runtime engine that transforms UART / TCP / Modbus 
 [中文](./README.md)
 
 <p align="center">
-  <a href="https://github.com/11cookies11/ToolOfCom/actions/workflows/ci.yml"><img alt="build" src="https://img.shields.io/github/actions/workflow/status/11cookies11/ToolOfCom/ci.yml?branch=main&label=build&style=for-the-badge"/></a>
-  <a href="https://github.com/11cookies11/ToolOfCom/tags"><img alt="version" src="https://img.shields.io/github/v/tag/11cookies11/ToolOfCom?label=version&style=for-the-badge"/></a>
-  <a href="./LICENSE"><img alt="license" src="https://img.shields.io/github/license/11cookies11/ToolOfCom?style=for-the-badge"/></a>
+  <a href="https://github.com/11cookies11/ProtoFlow/actions/workflows/ci.yml"><img alt="build" src="https://img.shields.io/github/actions/workflow/status/11cookies11/ProtoFlow/ci.yml?branch=main&label=build&style=for-the-badge"/></a>
+  <a href="https://github.com/11cookies11/ProtoFlow/tags"><img alt="version" src="https://img.shields.io/github/v/tag/11cookies11/ProtoFlow?label=version&style=for-the-badge"/></a>
+  <a href="./LICENSE"><img alt="license" src="https://img.shields.io/github/license/11cookies11/ProtoFlow?style=for-the-badge"/></a>
   <img alt="platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-orange?style=for-the-badge"/>
   <img alt="language" src="https://img.shields.io/badge/language-Python%20%2B%20Qt-7F3FBF?style=for-the-badge"/>
 </p>
 
 ## 🌐 Overview
 
-ToolOfCOM is not a “serial assistant” tool — it is a **communication logic runtime**.
+ProtoFlow is not a “serial assistant” tool — it is a **communication logic runtime**.
 
-Traditional debugging tools can only send and receive raw bytes. ToolOfCOM, however, describes complete communication flows using a DSL and executes them through a state-machine runtime, enabling **configurable, orchestrated, and extensible protocol behaviors**.
+Traditional debugging tools can only send and receive raw bytes. ProtoFlow, however, describes complete communication flows using a DSL and executes them through a state-machine runtime, enabling **configurable, orchestrated, and extensible protocol behaviors**.
 
 ```lua
                                 ┌──────────┐
@@ -56,7 +56,7 @@ But real device communication is never a single request–response action.
 - Conditional branching and execution flow
 - Final actions and transitions
 
-**ToolOfCOM redefines communication**:
+**ProtoFlow redefines communication**:
 
 You no longer write scripts or click UI buttons.
  You describe protocol behaviors declaratively using DSL,
@@ -69,7 +69,7 @@ Communication → no longer an operation
 Communication → becomes state-driven executable logic
 ```
 
-## 🤔 Why ToolOfCOM?
+## 🤔 Why ProtoFlow?
 
 Existing communication tools suffer from fundamental limitations:
 
@@ -82,7 +82,7 @@ Existing communication tools suffer from fundamental limitations:
 
 The communication world is inherently a **state machine**, not a collection of byte dumps.
 
-ToolOfCOM unlocks:
+ProtoFlow unlocks:
 
 - Protocol logic → declarative DSL
 - Communication sequence → state-machine executor
@@ -183,7 +183,7 @@ Download the release and run directly.
 ## 🤝 Contribute
 
 PRs, issues, and protocol extension plugins are warmly welcome.
- The long-term goal of ToolOfCOM is to become the **execution layer of communication protocols**.
+ The long-term goal of ProtoFlow is to become the **execution layer of communication protocols**.
 
 ------
 

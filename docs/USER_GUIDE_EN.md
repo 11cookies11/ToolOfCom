@@ -1,7 +1,7 @@
-# ToolOfCom User Guide
+# ProtoFlow User Guide
 
 ## 1. Overview
-ToolOfCom is a communication automation runtime for embedded/industrial/automation testing. It uses a **YAML DSL + state machine** to define flows declaratively, decoupling communication steps from protocol actions so you can script UART/TCP exchanges, firmware transfers, Modbus operations, and custom protocols quickly.  
+ProtoFlow is a communication automation runtime for embedded/industrial/automation testing. It uses a **YAML DSL + state machine** to define flows declaratively, decoupling communication steps from protocol actions so you can script UART/TCP exchanges, firmware transfers, Modbus operations, and custom protocols quickly.  
 Pipeline: `YAML DSL → state machine → actions → protocol adapter → channel (UART/TCP)`.
 
 ## 2. Installation & Run

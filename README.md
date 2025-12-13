@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/pictures/logo.png" width="200" alt="ToolOfCom logo"/>
+  <img src="./docs/pictures/logo.png" width="200" alt="ProtoFlow logo"/>
 </p>
 
 <p align="center">
@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-ToolOfCom 是一个通信运行时引擎，让 UART / TCP / Modbus / XMODEM 的交互流程不再是零散的收发字节，而是可编排、可执行的协议工作流。
+ProtoFlow 是一个通信运行时引擎，让 UART / TCP / Modbus / XMODEM 的交互流程不再是零散的收发字节，而是可编排、可执行的协议工作流。
 </p>
 
 ---
@@ -15,17 +15,17 @@ ToolOfCom 是一个通信运行时引擎，让 UART / TCP / Modbus / XMODEM 的�
 [EN](./README_EN.md)
 
 <p align="center">
-  <a href="https://github.com/11cookies11/ToolOfCom/actions/workflows/ci.yml"><img alt="build" src="https://img.shields.io/github/actions/workflow/status/11cookies11/ToolOfCom/ci.yml?branch=main&label=build&style=for-the-badge"/></a>
-  <a href="https://github.com/11cookies11/ToolOfCom/tags"><img alt="version" src="https://img.shields.io/github/v/tag/11cookies11/ToolOfCom?label=version&style=for-the-badge"/></a>
-  <a href="./LICENSE"><img alt="license" src="https://img.shields.io/github/license/11cookies11/ToolOfCom?style=for-the-badge"/></a>
+  <a href="https://github.com/11cookies11/ProtoFlow/actions/workflows/ci.yml"><img alt="build" src="https://img.shields.io/github/actions/workflow/status/11cookies11/ProtoFlow/ci.yml?branch=main&label=build&style=for-the-badge"/></a>
+  <a href="https://github.com/11cookies11/ProtoFlow/tags"><img alt="version" src="https://img.shields.io/github/v/tag/11cookies11/ProtoFlow?label=version&style=for-the-badge"/></a>
+  <a href="./LICENSE"><img alt="license" src="https://img.shields.io/github/license/11cookies11/ProtoFlow?style=for-the-badge"/></a>
   <img alt="platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-orange?style=for-the-badge"/>
   <img alt="language" src="https://img.shields.io/badge/language-Python%20%2B%20Qt-7F3FBF?style=for-the-badge"/>
 </p>
 
 ## 🌐 项目简介（Overview）
 
-ToolOfCOM 不是一个“串口助手”，它是一套 **通信逻辑运行时**。
- 传统调试工具只能一次性收发数据，而 ToolOfCOM 可以通过 DSL 描述完整通信流程，并由状态机执行器驱动协议逻辑，实现**可配置、可编排、可扩展的通信行为**。
+ProtoFlow 不是一个“串口助手”，它是一套 **通信逻辑运行时**。
+ 传统调试工具只能一次性收发数据，而 ProtoFlow 可以通过 DSL 描述完整通信流程，并由状态机执行器驱动协议逻辑，实现**可配置、可编排、可扩展的通信行为**。
 
 ```lua
                                             ┌──────────┐
@@ -55,7 +55,7 @@ ToolOfCOM 不是一个“串口助手”，它是一套 **通信逻辑运行时*
 - 条件跳转与流程驱动  
 - 最终执行动作
 
-**ToolOfCom 重新定义了通信方式**：
+**ProtoFlow 重新定义了通信方式**：
 
 你不再写脚本，也不再依赖 GUI 点点点，而是通过 DSL 描述协议行为，由运行时引擎自动执行通信流程。
 
@@ -69,7 +69,7 @@ ToolOfCOM 不是一个“串口助手”，它是一套 **通信逻辑运行时*
 
 
 
-## 🤔 为什么要做 ToolOfCom？
+## 🤔 为什么要做 ProtoFlow？
 
 现有通信工具存在几个本质问题：
 
@@ -81,7 +81,7 @@ ToolOfCOM 不是一个“串口助手”，它是一套 **通信逻辑运行时*
 | 难扩展 | 每种协议都要重新写代码 |
 
 通信世界其实是「状态机」，不是「一次性指令」。  
-ToolOfCom 的价值在于：
+ProtoFlow 的价值在于：
 
 + 将协议逻辑 → 声明式 DSL
 + 将通信流程 → 状态机执行器
@@ -198,7 +198,7 @@ ToolOfCom 的价值在于：
 ## 🤝 参与贡献（Contribute）
 
 欢迎提交 PR、Issue，以及协议扩展插件。
-ToolOfCOM 的长期目标是成为 **通信协议的执行层**。
+ProtoFlow 的长期目标是成为 **通信协议的执行层**。
 
 ---
 

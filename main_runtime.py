@@ -150,7 +150,7 @@ def run_tasks(tasks: list[Dict[str, Any]], channels: Dict[str, BaseChannel], log
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="ToolOfCom 通信运行时")
+    parser = argparse.ArgumentParser(description="ProtoFlow 通信运行时")
     parser.add_argument(
         "-c", "--config", default="config/app.yaml", help="任务 YAML 路径，默认 config/app.yaml"
     )

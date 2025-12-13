@@ -29,7 +29,7 @@ def main() -> None:
     window = MainWindow(bus, comm)
     window.show()
 
-    print("ToolOfCOM started")
+    print("ProtoFlow started")
 
     QTimer.singleShot(0, lambda: bus.publish("ui.ready"))
 

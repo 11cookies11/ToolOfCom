@@ -1,4 +1,4 @@
-name: Build and Release ToolOfCom
+name: Build and Release ProtoFlow
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
         run: |
           SEP=":"
           if [ "$RUNNER_OS" = "Windows" ]; then SEP=";"; fi
-          pyinstaller --name ToolOfCom --windowed --onefile \
+          pyinstaller --name ProtoFlow --windowed --onefile \
             --add-data "config${SEP}config" \
             --add-data "plugins${SEP}plugins" \
             main.py
@@ -41,24 +41,24 @@ jobs:
         shell: bash
         run: |
           if [ "${{ runner.os }}" == "Windows" ]; then
-            powershell Compress-Archive dist\\ToolOfCom.exe ToolOfCom-${{ github.ref_name }}-win.zip
+            powershell Compress-Archive dist\\ProtoFlow.exe ProtoFlow-${{ github.ref_name }}-win.zip
           else
-            tar -czvf ToolOfCom-${{ github.ref_name }}-linux.tar.gz dist/ToolOfCom
+            tar -czvf ProtoFlow-${{ github.ref_name }}-linux.tar.gz dist/ProtoFlow
           fi
 
       - name: Upload artifact for Windows
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: ToolOfCom-${{ matrix.os }}-${{ github.ref_name }}
-          path: ToolOfCom-${{ github.ref_name }}-win.zip
+          name: ProtoFlow-${{ matrix.os }}-${{ github.ref_name }}
+          path: ProtoFlow-${{ github.ref_name }}-win.zip
 
       - name: Upload artifact for Linux
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: ToolOfCom-${{ matrix.os }}-${{ github.ref_name }}
-          path: ToolOfCom-${{ github.ref_name }}-linux.tar.gz
+          name: ProtoFlow-${{ matrix.os }}-${{ github.ref_name }}
+          path: ProtoFlow-${{ github.ref_name }}-linux.tar.gz
 
   release:
     name: Publish Release
@@ -76,9 +76,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          name: "ToolOfCom ${{ github.ref_name }}"
+          name: "ProtoFlow ${{ github.ref_name }}"
           body: |
-            Auto-generated release for ToolOfCom.
+            Auto-generated release for ProtoFlow.
             Features:
             - PyInstaller packaged binaries
             - Multi-platform support (Windows/Linux)
