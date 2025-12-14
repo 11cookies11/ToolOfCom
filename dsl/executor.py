@@ -18,6 +18,11 @@ class StateMachineExecutor:
         self.done = False
 
     def run(self) -> None:
+        if self.current and hasattr(self.ctx, "record_state"):
+            try:
+                self.ctx.record_state(self.current.name)
+            except Exception:
+                pass
         while not self.done and self.current:
             state = self.current
             self.ctx.logger.info(f"[STATE] {state.name}")
@@ -66,5 +71,10 @@ class StateMachineExecutor:
             self.done = True
             return
         self.current = self.ast.state_machine.states[name]
+        if self.current and hasattr(self.ctx, "record_state"):
+            try:
+                self.ctx.record_state(self.current.name)
+            except Exception:
+                pass
         if self.current.name == "done":
             self.done = True

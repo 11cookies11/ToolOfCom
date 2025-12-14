@@ -12,6 +12,7 @@ from actions.builtin_actions import register_builtin_actions
 from actions.protocol_actions import register_protocol_actions
 from actions.schema_protocol import register_schema_protocol_actions
 from actions.chart_actions import register_chart_actions
+from actions.record_actions import register_record_actions
 from dsl.executor import StateMachineExecutor
 from dsl.parser import parse_script
 from runtime.channels import build_channels
@@ -124,6 +125,7 @@ class ScriptRunnerQt(QThread):
         register_protocol_actions()
         register_schema_protocol_actions()
         register_chart_actions()
+        register_record_actions()
 
         channels = {}
         ctx = None
@@ -145,6 +147,7 @@ class ScriptRunnerQt(QThread):
                 vars_init=ast.vars,
                 bus=self.bus,
                 external_events=self.external_events,
+                script_text=self.yaml_text,
             )
 
             executor = _ObservableExecutor(

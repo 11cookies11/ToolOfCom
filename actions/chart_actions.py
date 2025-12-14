@@ -15,9 +15,6 @@ def _eval(ctx, val: Any) -> Any:
 
 def action_chart_add(ctx, args: Dict[str, Any]):
     """Push a data point to chart system. Args: bind (str), value (num or expr), ts (seconds, optional)."""
-    if chart_bridge is None:
-        ctx.logger.warning("chart bridge unavailable (Qt not loaded)")
-        return None
     bind = args.get("bind")
     if not bind:
         raise ValueError("chart_add requires bind")
@@ -30,15 +27,21 @@ def action_chart_add(ctx, args: Dict[str, Any]):
         val = float(_eval(ctx, raw_val))
     except Exception as exc:
         raise ValueError(f"chart_add value invalid: {exc}") from exc
-    chart_bridge.sig_data.emit({"ts": ts, str(bind): val})
+    payload = {"ts": ts, str(bind): val}
+    if hasattr(ctx, "record_chart"):
+        try:
+            ctx.record_chart(payload)
+        except Exception:
+            pass
+    if chart_bridge is None:
+        ctx.logger.warning("chart bridge unavailable (Qt not loaded)")
+        return payload
+    chart_bridge.sig_data.emit(payload)
     return {"ts": ts, "bind": str(bind), "value": val}
 
 
 def action_chart_add3d(ctx, args: Dict[str, Any]):
     """Push a 3D point. Args: x,y,z (expr), ts(optional), bind_x/y/z(optional keys, default x/y/z)."""
-    if chart_bridge is None:
-        ctx.logger.warning("chart bridge unavailable (Qt not loaded)")
-        return None
     bx = str(args.get("bind_x", "x"))
     by = str(args.get("bind_y", "y"))
     bz = str(args.get("bind_z", "z"))
@@ -50,6 +53,14 @@ def action_chart_add3d(ctx, args: Dict[str, Any]):
     ts_arg = args.get("ts") or args.get("timestamp")
     ts = float(_eval(ctx, ts_arg)) if ts_arg is not None else time.time()
     payload = {"ts": ts, bx: x_val, by: y_val, bz: z_val}
+    if hasattr(ctx, "record_chart"):
+        try:
+            ctx.record_chart(payload)
+        except Exception:
+            pass
+    if chart_bridge is None:
+        ctx.logger.warning("chart bridge unavailable (Qt not loaded)")
+        return payload
     chart_bridge.sig_data.emit(payload)
     return payload
 
