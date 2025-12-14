@@ -100,8 +100,35 @@ stateDiagram-v2
   - `log`: 输出日志。
   - `wait`: 毫秒休眠。
   - `wait_for_event`: 阻塞等待事件（可指定 `event`、`timeout`）。
+  - `if`: 条件分支（`when`/`then`/`else` 内联动作块）。
+  - `list_filter`: 列表过滤（`src`/`where`，可选 `dst`）。
+  - `list_map`: 列表映射（`src`/`expr`，可选 `dst`，可选 `where`）。
 - 协议动作：XMODEM/Modbus 等（下文详述）。
 - 自定义动作：在 Python 中 `ActionRegistry.register("name", fn)` 注册，`fn(ctx, args)` 使用 `ctx.channel_write` / `ctx.set_var` / `ctx.vars_snapshot`。
+
+### 8.2 数据处理（筛选/变换）
+`if`（适合在同一个 state 的 `do` 里做筛选/分支，避免拆很多状态）：
+```yaml
+do:
+  - if:
+      when: "$event_name == 'ui.param.apply' and $event_payload.enabled"
+      then:
+        - set: { threshold: "$event_payload.threshold" }
+        - log: "threshold applied: $threshold"
+      else:
+        - log: "ignored"
+```
+
+`list_filter` / `list_map` 会对列表逐项计算表达式。可用 `$item`、`$index`，如果 item 是 dict 且 key 是合法标识符，也可用 `$item.<key>`。
+```yaml
+do:
+  - set: { samples: [1, 2, 3, 4, 5] }
+  - action: list_filter
+    args: { src: "$samples", where: "$item % 2 == 1", dst: odd }
+  - action: list_map
+    args: { src: "$odd", expr: "$item * 10", dst: scaled }
+  - log: "scaled=$scaled"
+```
 
 ### 8.1 Schema 帧动作（自定义帧 + 动作注册）
 1) 定义协议帧 schema（示例）：

@@ -48,6 +48,14 @@ class RuntimeContext:
         snap["event"] = self._last_event
         snap["event_name"] = self._last_event_name
         snap["event_payload"] = self._last_event_payload
+        if isinstance(self._last_event_payload, dict):
+            for key, value in self._last_event_payload.items():
+                if isinstance(key, str) and key.isidentifier():
+                    snap[f"event_payload.{key}"] = value
+        if isinstance(self._last_event, dict):
+            for key, value in self._last_event.items():
+                if isinstance(key, str) and key.isidentifier():
+                    snap[f"event.{key}"] = value
         return snap
 
     def eval_value(self, value: Any) -> Any:

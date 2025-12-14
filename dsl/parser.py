@@ -25,6 +25,8 @@ def _parse_actions(items: List[Any]) -> List[ActionCall]:
             raise ValueError(f"非法动作定义: {item}")
         if "action" in item:
             actions.append(ActionCall(name=item["action"], args=item.get("args", {}) or {}))
+        elif "if" in item:
+            actions.append(ActionCall(name="if", args=item.get("if", {}) or {}))
         elif "set" in item:
             actions.append(ActionCall(name="set", args=item["set"]))
         elif "log" in item:

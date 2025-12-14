@@ -93,8 +93,35 @@ stateDiagram-v2
   - `log`: print log.
   - `wait`: sleep in ms.
   - `wait_for_event`: blocking wait (supports `event`, `timeout`).
+  - `if`: conditional inline action block (`when`, `then`, `else`).
+  - `list_filter`: filter a list into a new list (`src`, `where`, optional `dst`).
+  - `list_map`: map a list into a new list (`src`, `expr`, optional `dst`, optional `where`).
 - Protocol actions: XMODEM/Modbus etc. (see below).
 - Custom actions: in Python `ActionRegistry.register("name", fn)`, where `fn(ctx, args)` can use `ctx.channel_write` / `ctx.set_var` / `ctx.vars_snapshot`.
+
+### 8.2 Data Processing (filter/transform)
+`if` (recommended to reduce extra states when you only need to filter/branch inside `do`):
+```yaml
+do:
+  - if:
+      when: "$event_name == 'ui.param.apply' and $event_payload.enabled"
+      then:
+        - set: { threshold: "$event_payload.threshold" }
+        - log: "threshold applied: $threshold"
+      else:
+        - log: "ignored"
+```
+
+`list_filter` / `list_map` evaluate expressions per item. You can use `$item`, `$index`, and for dict items also `$item.<key>` (identifier keys only).
+```yaml
+do:
+  - set: { samples: [1, 2, 3, 4, 5] }
+  - action: list_filter
+    args: { src: "$samples", where: "$item % 2 == 1", dst: odd }
+  - action: list_map
+    args: { src: "$odd", expr: "$item * 10", dst: scaled }
+  - log: "scaled=$scaled"
+```
 
 ### 8.1 Schema Frame Actions (custom frames + registered actions)
 1) Define protocol frame schema (example):

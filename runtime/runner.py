@@ -7,6 +7,7 @@ from actions.protocol_actions import register_protocol_actions
 from actions.schema_protocol import register_schema_protocol_actions
 from actions.chart_actions import register_chart_actions
 from actions.record_actions import register_record_actions
+from actions.data_actions import register_data_actions
 from dsl.executor import StateMachineExecutor
 from dsl.parser import parse_script
 from runtime.channels import build_channels
@@ -19,6 +20,7 @@ def _register_actions() -> None:
     register_schema_protocol_actions()
     register_chart_actions()
     register_record_actions()
+    register_data_actions()
 
 
 def run_dsl(path: str, *, bus=None, external_events: list[str] | None = None) -> int:
