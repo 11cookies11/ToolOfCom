@@ -1,0 +1,92 @@
+version: 1
+
+vars:
+  block: 1
+  file_path: ./logs/app.bin
+  max_blocks: 960
+  retry: 0
+  max_retry: 5
+
+channels:
+  boot:
+    type: uart
+    device: COM5
+    baudrate: 115200
+    log_path: ./logs/boot_uart.log
+
+state_machine:
+  initial: enter_ota
+  states:
+    enter_ota:
+      do:
+        - action: modbus_write
+          args:
+            protocol: rtu
+            function: 6
+            address: 0x0001
+            values: [1]
+            unit_id: 1
+            retries: 3
+            timeout: 1000
+        - wait: { ms: 200 }
+      goto: wait_handshake
+
+    wait_handshake:
+      do:
+        - log: "waiting for 'C' from bootloader (XMODEM-CRC handshake)"
+      on_event:
+        "C": send_block
+      timeout: 10000
+      on_timeout: fail
+
+    send_block:
+      do:
+        - action: send_xmodem_block
+          args:
+            block: "$block"
+        - wait: { ms: 50 }
+      on_event:
+        "\x06": next_block
+        "\x15": resend_block
+        "\x18": abort
+      timeout: 5000
+      on_timeout: resend_block
+
+    resend_block:
+      do:
+        - set: { retry: "$retry + 1" }
+        - log: "resend block"
+      when: "$retry < $max_retry"
+      goto: send_block
+      else_goto: abort
+
+    next_block:
+      do:
+        - set: { block: "$block + 1" }
+        - set: { retry: 0 }
+      when: "$block <= $file_block_count and $block <= $max_blocks"
+      goto: send_block
+      else_goto: send_eot
+
+    send_eot:
+      do:
+        - action: send_eot
+      on_event:
+        "\x06": done
+        "\x18": abort
+      timeout: 5000
+      on_timeout: abort
+
+    abort:
+      do:
+        - log: "bootloader returned CAN or timeout, stop transfer"
+      goto: done
+
+    fail:
+      do:
+        - log: "handshake timeout, XMODEM not started"
+      goto: done
+
+    done:
+      do:
+        - log: "XMODEM flow ended (boot should jump on success)"
