@@ -2,11 +2,11 @@ from __future__ import annotations
 
 try:
     from PySide6.QtCore import QPointF, QSize, Qt
-    from PySide6.QtGui import QColor, QIcon, QMouseEvent, QPainter, QPen, QPixmap
+    from PySide6.QtGui import QColor, QGuiApplication, QIcon, QMouseEvent, QPainter, QPen, QPixmap
     from PySide6.QtWidgets import QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel, QPushButton, QWidget
 except ImportError:  # pragma: no cover
     from PyQt6.QtCore import QPointF, QSize, Qt  # type: ignore
-    from PyQt6.QtGui import QColor, QIcon, QMouseEvent, QPainter, QPen, QPixmap  # type: ignore
+    from PyQt6.QtGui import QColor, QGuiApplication, QIcon, QMouseEvent, QPainter, QPen, QPixmap  # type: ignore
     from PyQt6.QtWidgets import (  # type: ignore
         QFrame,
         QGraphicsDropShadowEffect,
@@ -127,6 +127,47 @@ class TitleBar(QFrame):
 
         self._dragging = False
         self._drag_pos = None
+        self._snap_margin = 16
+
+    def _apply_snap(self, global_pos) -> bool:
+        screen = QGuiApplication.screenAt(global_pos)
+        if not screen:
+            screen = self.parent.screen() if hasattr(self.parent, "screen") else None
+        if not screen:
+            return False
+        rect = screen.availableGeometry()
+        x = global_pos.x()
+        y = global_pos.y()
+        margin = self._snap_margin
+        at_left = x <= rect.x() + margin
+        at_right = x >= rect.x() + rect.width() - margin
+        at_top = y <= rect.y() + margin
+
+        if not (at_left or at_right or at_top):
+            return False
+
+        if hasattr(self.parent, "showNormal"):
+            self.parent.showNormal()
+
+        if at_top and at_left:
+            self.parent.setGeometry(rect.x(), rect.y(), rect.width() // 2, rect.height() // 2)
+        elif at_top and at_right:
+            self.parent.setGeometry(
+                rect.x() + rect.width() // 2,
+                rect.y(),
+                rect.width() // 2,
+                rect.height() // 2,
+            )
+        elif at_left:
+            self.parent.setGeometry(rect.x(), rect.y(), rect.width() // 2, rect.height())
+        elif at_right:
+            self.parent.setGeometry(rect.x() + rect.width() // 2, rect.y(), rect.width() // 2, rect.height())
+        else:
+            self.parent.setGeometry(rect)
+
+        if hasattr(self.parent, "title_bar"):
+            self.parent.title_bar.set_maximized(False)
+        return True
 
     def _build_logo_pixmap(self) -> QPixmap:
         size = 18
@@ -173,6 +214,10 @@ class TitleBar(QFrame):
         if event.button() == Qt.LeftButton and self._dragging:
             self._dragging = False
             self._drag_pos = None
+            gp = event.globalPosition().toPoint() if hasattr(event, "globalPosition") else event.globalPos()
+            if self._apply_snap(gp):
+                event.accept()
+                return
             event.accept()
             return
         super().mouseReleaseEvent(event)
