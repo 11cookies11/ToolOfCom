@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ProtoFlow Web UI</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f3f3f3;
+        --panel: #ffffff;
+        --text: #1e1e1e;
+        --accent: #007acc;
+        --border: #e0e0e0;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "Source Sans 3", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .app {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 48px 64px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        text-align: center;
+      }
+      .title {
+        font-size: 18px;
+        letter-spacing: 0.4px;
+        margin: 0 0 16px;
+      }
+      .big {
+        font-size: 72px;
+        font-weight: 700;
+        color: var(--accent);
+        margin: 0;
+      }
+      .hint {
+        font-size: 12px;
+        color: #666666;
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="card">
+        <p class="title">ProtoFlow Web UI Boot</p>
+        <p class="big">2</p>
+        <p class="hint">WebEngine host is running</p>
+      </div>
+    </div>
+  </body>
+</html>
