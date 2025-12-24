@@ -399,6 +399,8 @@ textarea {
   gap: 20px;
   padding: 24px 28px 30px;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .page-header {
@@ -415,6 +417,11 @@ textarea {
 
 .page-header.spaced {
   align-items: flex-start;
+}
+
+.page-header > div:first-child {
+  flex: 1;
+  min-width: 0;
 }
 
 .page-header.compact {
@@ -436,7 +443,7 @@ textarea {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .status-indicator {
@@ -585,7 +592,8 @@ textarea {
   border-radius: 10px;
   padding: 0 10px;
   background: #ffffff;
-  min-width: 220px;
+  min-width: 180px;
+  max-width: 240px;
 }
 
 .select-wrap select {
@@ -1538,14 +1546,14 @@ textarea {
     min-height: 240px;
   }
 
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
   .header-actions {
-    width: 100%;
-    justify-content: space-between;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .page-header {
+    padding: 14px 16px;
   }
 }
 
