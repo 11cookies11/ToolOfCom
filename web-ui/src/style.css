@@ -75,13 +75,13 @@ textarea {
 }
 
 #app {
-  min-height: 100vh;
+  height: 100%;
 }
 
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100%;
   background: var(--bg);
 }
 
@@ -176,6 +176,7 @@ textarea {
   display: flex;
   flex: 1;
   min-height: 0;
+  height: calc(100vh - var(--titlebar-height));
 }
 
 .resize-handle {
@@ -401,6 +402,7 @@ textarea {
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  height: 100%;
 }
 
 .page-header {
