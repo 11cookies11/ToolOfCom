@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 
 const bridge = ref(null)
-const status = ref('disconnected')
+const connectionInfo = ref({ state: 'disconnected', detail: '' })
 const ports = ref([])
 const selectedPort = ref('')
 const baud = ref(115200)
@@ -120,10 +120,7 @@ const protocolCards = ref([
   },
 ])
 
-const isConnected = computed(() => {
-  const text = String(status.value || '').toLowerCase()
-  return text.includes('connected') && !text.includes('disconnected')
-})
+const isConnected = computed(() => connectionInfo.value.state === 'connected')
 
 const consoleLogs = computed(() => filterLogs(commLogs.value))
 const uartLogs = computed(() => filterLogs(commLogs.value))
@@ -133,12 +130,38 @@ const scriptViewLogs = computed(() => filterLogs(scriptLogs.value))
 function filterLogs(lines) {
   const keyword = logKeyword.value.trim().toLowerCase()
   if (!keyword) return lines
-  return lines.filter((line) => String(line).toLowerCase().includes(keyword))
+  return lines.filter((line) => {
+    if (typeof line === 'string') {
+      return line.toLowerCase().includes(keyword)
+    }
+    const text = String(line.text || '').toLowerCase()
+    const hex = String(line.hex || '').toLowerCase()
+    return text.includes(keyword) || hex.includes(keyword)
+  })
+}
+
+function formatTime(ts) {
+  const date = new Date((ts || 0) * 1000)
+  const pad = (value, len = 2) => String(value).padStart(len, '0')
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(
+    date.getMilliseconds(),
+    3
+  )}`
+}
+
+function formatPayload(item) {
+  if (!item) return ''
+  if (displayMode.value === 'hex' && item.hex) return item.hex
+  return item.text || ''
 }
 
 function addCommLog(kind, payload) {
-  const line = `[${kind}] ${payload.text || ''} ${payload.hex ? `(0x${payload.hex})` : ''}`
-  commLogs.value.unshift(line.trim())
+  commLogs.value.unshift({
+    kind,
+    text: payload.text || '',
+    hex: payload.hex || '',
+    ts: payload.ts || Date.now() / 1000,
+  })
   if (commLogs.value.length > 200) commLogs.value.pop()
 }
 
@@ -153,7 +176,7 @@ function addCommBatch(batch) {
     if (!item) continue
     const kind = item.kind || 'RX'
     if (kind === 'FRAME') {
-      addCommLog('FRAME', { text: JSON.stringify(item.payload) })
+      addCommLog('FRAME', { text: JSON.stringify(item.payload), ts: item.ts })
     } else {
       addCommLog(kind, item.payload || {})
     }
@@ -264,8 +287,19 @@ function attachBridge(obj) {
   bridge.value = obj
   obj.comm_batch.connect((batch) => addCommBatch(batch))
   obj.comm_status.connect((payload) => {
-    const text = typeof payload === 'string' ? payload : JSON.stringify(payload)
-    status.value = text
+    const detail = payload && payload.payload !== undefined ? payload.payload : payload
+    if (!detail) {
+      connectionInfo.value = { state: 'disconnected', detail: '' }
+      return
+    }
+    if (typeof detail === 'string') {
+      connectionInfo.value = { state: 'error', detail }
+      return
+    }
+    connectionInfo.value = {
+      state: 'connected',
+      detail: detail.address || detail.port || detail.type || '',
+    }
   })
   obj.script_log.connect((line) => addScriptLog(line))
   obj.script_state.connect((state) => {
@@ -518,6 +552,10 @@ function clearDragState() {
               <p>单步调试指令发送与 I/O 数据流实时监控。</p>
             </div>
             <div class="header-actions">
+              <div class="status-indicator" :class="connectionInfo.state">
+                <span class="dot"></span>
+                {{ isConnected ? '已连接' : connectionInfo.state === 'error' ? '错误' : '未连接' }}
+              </div>
               <div class="select-wrap">
                 <span class="material-symbols-outlined">usb</span>
                 <select v-model="selectedPort" @change="channelMode = 'serial'">
@@ -526,6 +564,9 @@ function clearDragState() {
                 </select>
                 <span class="material-symbols-outlined expand">expand_more</span>
               </div>
+              <button class="icon-btn" type="button" title="刷新串口" @click="refreshPorts">
+                <span class="material-symbols-outlined">refresh</span>
+              </button>
               <button class="btn btn-success" @click="isConnected ? disconnect() : connectSerial()">
                 <span class="material-symbols-outlined">link</span>
                 {{ isConnected ? '断开' : '连接' }}
@@ -534,129 +575,140 @@ function clearDragState() {
           </header>
 
           <div class="manual-grid">
-            <div class="panel stack">
-              <div class="panel-title">
-                <span class="material-symbols-outlined">send</span>
-                发送数据
-                <div class="segmented">
-                  <button :class="{ active: sendMode === 'text' }" @click="sendMode = 'text'">Text</button>
-                  <button :class="{ active: sendMode === 'hex' }" @click="sendMode = 'hex'">HEX</button>
-                </div>
-              </div>
-              <textarea
-                v-if="sendMode === 'text'"
-                v-model="sendText"
-                class="text-area"
-                placeholder="输入要发送的数据..."
-              ></textarea>
-              <textarea
-                v-else
-                v-model="sendHex"
-                class="text-area"
-                placeholder="55 AA 01"
-              ></textarea>
-              <div class="toggle-row">
-                <label class="check">
-                  <input v-model="appendCR" type="checkbox" />
-                  <span>+CR</span>
-                </label>
-                <label class="check">
-                  <input v-model="appendLF" type="checkbox" />
-                  <span>+LF</span>
-                </label>
-                <label class="check">
-                  <input v-model="loopSend" type="checkbox" />
-                  <span>循环发送</span>
-                </label>
-              </div>
-              <button class="btn btn-primary" @click="sendPayload">
-                <span class="material-symbols-outlined">send</span>
-                发送
-              </button>
-            </div>
-
-            <div class="panel stack">
-              <div class="panel-title simple">
-                快捷指令
-                <button class="icon-btn">
-                  <span class="material-symbols-outlined">add</span>
-                </button>
-              </div>
-              <div class="quick-list">
-                <button
-                  v-for="cmd in quickCommands"
-                  :key="cmd"
-                  class="quick-item"
-                  @click="sendQuickCommand(cmd)"
-                >
-                  <span>{{ cmd }}</span>
-                  <span class="material-symbols-outlined">play_arrow</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="monitor-stack">
-            <div class="panel monitor">
-              <div class="panel-title bar">
-                <div class="panel-title-left">
-                  <span class="material-symbols-outlined">swap_horiz</span>
-                  IO 监控
-                  <span class="pill live">LIVE</span>
-                </div>
-                <div class="panel-actions">
-                  <div class="segmented small">
-                    <button :class="{ active: displayMode === 'ascii' }" @click="displayMode = 'ascii'">ASCII</button>
-                    <button :class="{ active: displayMode === 'hex' }" @click="displayMode = 'hex'">HEX</button>
+            <div class="manual-left">
+              <div class="panel stack manual-send">
+                <div class="panel-title">
+                  <span class="material-symbols-outlined">send</span>
+                  发送数据
+                  <div class="segmented">
+                    <button :class="{ active: sendMode === 'text' }" @click="sendMode = 'text'">Text</button>
+                    <button :class="{ active: sendMode === 'hex' }" @click="sendMode = 'hex'">HEX</button>
                   </div>
-                  <span class="divider"></span>
-                  <button class="icon-btn" title="清除">
-                    <span class="material-symbols-outlined">delete</span>
-                  </button>
-                  <button class="icon-btn" title="暂停">
-                    <span class="material-symbols-outlined">pause_circle</span>
-                  </button>
-                  <button class="icon-btn" title="导出">
-                    <span class="material-symbols-outlined">download</span>
+                </div>
+                <textarea
+                  v-if="sendMode === 'text'"
+                  v-model="sendText"
+                  class="text-area"
+                  placeholder="输入要发送的数据..."
+                ></textarea>
+                <textarea
+                  v-else
+                  v-model="sendHex"
+                  class="text-area"
+                  placeholder="55 AA 01"
+                ></textarea>
+                <div class="toggle-row">
+                  <label class="check">
+                    <input v-model="appendCR" type="checkbox" />
+                    <span>+CR</span>
+                  </label>
+                  <label class="check">
+                    <input v-model="appendLF" type="checkbox" />
+                    <span>+LF</span>
+                  </label>
+                  <label class="check">
+                    <input v-model="loopSend" type="checkbox" />
+                    <span>循环发送</span>
+                  </label>
+                </div>
+                <button class="btn btn-primary" @click="sendPayload">
+                  <span class="material-symbols-outlined">send</span>
+                  发送
+                </button>
+              </div>
+
+              <div class="panel stack manual-quick">
+                <div class="panel-title simple">
+                  快捷指令
+                  <button class="icon-btn">
+                    <span class="material-symbols-outlined">add</span>
                   </button>
                 </div>
-              </div>
-              <div class="log-stream">
-                <div class="log-line" v-for="(line, index) in commLogs" :key="`${line}-${index}`">
-                  {{ line }}
+                <div class="quick-list">
+                  <button
+                    v-for="cmd in quickCommands"
+                    :key="cmd"
+                    class="quick-item"
+                    @click="sendQuickCommand(cmd)"
+                  >
+                    <span>{{ cmd }}</span>
+                    <span class="material-symbols-outlined">play_arrow</span>
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div class="panel console">
-              <div class="tab-strip">
-                <button :class="{ active: logTab === 'all' }" @click="logTab = 'all'">全部日志</button>
-                <button :class="{ active: logTab === 'uart' }" @click="logTab = 'uart'">串口 (UART)</button>
-                <button :class="{ active: logTab === 'tcp' }" @click="logTab = 'tcp'">网络 (TCP)</button>
-                <button :class="{ active: logTab === 'script' }" @click="logTab = 'script'">脚本引擎</button>
-                <div class="search">
-                  <span class="material-symbols-outlined">search</span>
-                  <input v-model="logKeyword" type="text" placeholder="过滤日志..." />
+            <div class="manual-right">
+              <div class="panel monitor manual-monitor">
+                <div class="panel-title bar">
+                  <div class="panel-title-left">
+                    <span class="material-symbols-outlined">swap_horiz</span>
+                    IO 监控
+                    <span class="pill live">LIVE</span>
+                  </div>
+                  <div class="panel-actions">
+                    <div class="segmented small">
+                      <button :class="{ active: displayMode === 'ascii' }" @click="displayMode = 'ascii'">ASCII</button>
+                      <button :class="{ active: displayMode === 'hex' }" @click="displayMode = 'hex'">HEX</button>
+                    </div>
+                    <span class="divider"></span>
+                    <button class="icon-btn" title="清除">
+                      <span class="material-symbols-outlined">delete</span>
+                    </button>
+                    <button class="icon-btn" title="暂停">
+                      <span class="material-symbols-outlined">pause_circle</span>
+                    </button>
+                    <button class="icon-btn" title="导出">
+                      <span class="material-symbols-outlined">download</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="log-stream">
+                  <div class="log-line" v-for="(item, index) in commLogs" :key="`io-${index}`">
+                    <span class="log-time">{{ formatTime(item.ts) }}</span>
+                    <span class="log-kind" :class="`kind-${item.kind?.toLowerCase()}`">{{ item.kind }}</span>
+                    <span class="log-text">{{ formatPayload(item) }}</span>
+                  </div>
                 </div>
               </div>
-              <div class="log-stream compact">
-                <div
-                  v-for="(line, index) in (logTab === 'uart' ? uartLogs : logTab === 'tcp' ? tcpLogs : logTab === 'script' ? scriptViewLogs : consoleLogs)"
-                  :key="`${line}-${index}`"
-                  class="log-line"
-                >
-                  {{ line }}
+
+              <div class="panel console manual-console">
+                <div class="tab-strip">
+                  <button :class="{ active: logTab === 'all' }" @click="logTab = 'all'">全部日志</button>
+                  <button :class="{ active: logTab === 'uart' }" @click="logTab = 'uart'">串口 (UART)</button>
+                  <button :class="{ active: logTab === 'tcp' }" @click="logTab = 'tcp'">网络 (TCP)</button>
+                  <button :class="{ active: logTab === 'script' }" @click="logTab = 'script'">脚本引擎</button>
+                  <div class="search">
+                    <span class="material-symbols-outlined">search</span>
+                    <input v-model="logKeyword" type="text" placeholder="过滤日志..." />
+                  </div>
                 </div>
-              </div>
-              <div class="panel-footer">
-                <span>{{ consoleLogs.length }} 条日志记录</span>
-                <button class="link-btn">清除日志</button>
+                <div class="log-stream compact">
+                  <div
+                    v-for="(line, index) in (logTab === 'uart' ? uartLogs : logTab === 'tcp' ? tcpLogs : logTab === 'script' ? scriptViewLogs : consoleLogs)"
+                    :key="`console-${index}`"
+                    class="log-line"
+                  >
+                    <template v-if="typeof line === 'string'">
+                      {{ line }}
+                    </template>
+                    <template v-else>
+                      <span class="log-time">{{ formatTime(line.ts) }}</span>
+                      <span class="log-kind" :class="`kind-${line.kind?.toLowerCase()}`">{{ line.kind }}</span>
+                      <span class="log-text">{{ formatPayload(line) }}</span>
+                    </template>
+                  </div>
+                </div>
+                <div class="panel-footer">
+                  <span>{{ consoleLogs.length }} 条日志记录</span>
+                  <button class="link-btn">清除日志</button>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section v-else-if="currentView === 'scripts'" class="page">
+<section v-else-if="currentView === 'scripts'" class="page">
           <header class="page-header compact">
             <div class="file-info">
               <div class="file-title">
