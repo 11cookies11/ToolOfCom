@@ -27,6 +27,19 @@ function addScriptLog(line) {
   if (scriptLogs.value.length > 200) scriptLogs.value.pop()
 }
 
+function addCommBatch(batch) {
+  if (!Array.isArray(batch)) return
+  for (const item of batch) {
+    if (!item) continue
+    const kind = item.kind || 'RX'
+    if (kind === 'FRAME') {
+      addCommLog('FRAME', { text: JSON.stringify(item.payload) })
+    } else {
+      addCommLog(kind, item.payload || {})
+    }
+  }
+}
+
 function withResult(value, handler) {
   if (value && typeof value.then === 'function') {
     value.then(handler)
@@ -82,14 +95,10 @@ function stopScript() {
 
 function attachBridge(obj) {
   bridge.value = obj
-  obj.comm_rx.connect((payload) => addCommLog('RX', payload))
-  obj.comm_tx.connect((payload) => addCommLog('TX', payload))
+  obj.comm_batch.connect((batch) => addCommBatch(batch))
   obj.comm_status.connect((payload) => {
     const text = typeof payload === 'string' ? payload : JSON.stringify(payload)
     status.value = text
-  })
-  obj.protocol_frame.connect((payload) => {
-    addCommLog('FRAME', { text: JSON.stringify(payload) })
   })
   obj.script_log.connect((line) => addScriptLog(line))
   obj.script_state.connect((state) => {
@@ -165,7 +174,16 @@ onMounted(() => {
           <el-button type="primary" @click="sendHexData">Send</el-button>
         </div>
         <div class="log">
-          <div v-for="(line, idx) in commLogs" :key="idx">{{ line }}</div>
+          <el-fixed-size-list
+            :data="commLogs"
+            :total="commLogs.length"
+            :height="200"
+            :item-size="18"
+          >
+            <template #default="{ data, index, style }">
+              <div class="log-line" :style="style">{{ data[index] }}</div>
+            </template>
+          </el-fixed-size-list>
         </div>
       </section>
 
@@ -185,7 +203,16 @@ onMounted(() => {
           <el-button plain @click="stopScript">Stop</el-button>
         </div>
         <div class="log">
-          <div v-for="(line, idx) in scriptLogs" :key="idx">{{ line }}</div>
+          <el-fixed-size-list
+            :data="scriptLogs"
+            :total="scriptLogs.length"
+            :height="200"
+            :item-size="18"
+          >
+            <template #default="{ data, index, style }">
+              <div class="log-line" :style="style">{{ data[index] }}</div>
+            </template>
+          </el-fixed-size-list>
         </div>
       </section>
     </main>

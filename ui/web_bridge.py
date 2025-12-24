@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 try:
-    from PySide6.QtCore import QObject, Signal, Slot
+    from PySide6.QtCore import QObject, QTimer, Signal, Slot
 except ImportError:  # pragma: no cover
-    from PyQt6.QtCore import QObject, pyqtSignal as Signal, pyqtSlot as Slot  # type: ignore
+    from PyQt6.QtCore import QObject, QTimer, pyqtSignal as Signal, pyqtSlot as Slot  # type: ignore
 
 from ui.script_runner_qt import ScriptRunnerQt
 
@@ -20,6 +20,7 @@ class WebBridge(QObject):
     comm_tx = Signal(object)
     comm_status = Signal(object)
     protocol_frame = Signal(object)
+    comm_batch = Signal(object)
     script_log = Signal(str)
     script_state = Signal(str)
     script_progress = Signal(int)
@@ -29,6 +30,11 @@ class WebBridge(QObject):
         self._bus = bus
         self._comm = comm
         self._script_runner: Optional[ScriptRunnerQt] = None
+        self._buffer: List[Dict[str, Any]] = []
+        self._flush_timer = QTimer(self)
+        self._flush_timer.setInterval(50)
+        self._flush_timer.timeout.connect(self._flush_buffers)
+        self._flush_timer.start()
         if self._bus:
             self._bus.subscribe("comm.rx", self._on_comm_rx)
             self._bus.subscribe("comm.tx", self._on_comm_tx)
@@ -111,13 +117,25 @@ class WebBridge(QObject):
         return {"text": text, "hex": hex_text, "ts": time.time()}
 
     def _on_comm_rx(self, payload: Any) -> None:
-        self.comm_rx.emit(self._emit_bytes(payload))
+        self._append_buffer({"kind": "RX", "payload": self._emit_bytes(payload)})
 
     def _on_comm_tx(self, payload: Any) -> None:
-        self.comm_tx.emit(self._emit_bytes(payload))
+        self._append_buffer({"kind": "TX", "payload": self._emit_bytes(payload)})
 
     def _on_comm_status(self, payload: Any) -> None:
         self.comm_status.emit({"payload": payload, "ts": time.time()})
 
     def _on_protocol_frame(self, payload: Any) -> None:
-        self.protocol_frame.emit(payload)
+        self._append_buffer({"kind": "FRAME", "payload": payload, "ts": time.time()})
+
+    def _append_buffer(self, item: Dict[str, Any]) -> None:
+        self._buffer.append(item)
+        if len(self._buffer) > 2000:
+            self._buffer = self._buffer[-1000:]
+
+    def _flush_buffers(self) -> None:
+        if not self._buffer:
+            return
+        batch = self._buffer[:]
+        self._buffer.clear()
+        self.comm_batch.emit(batch)
