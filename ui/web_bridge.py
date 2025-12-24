@@ -25,10 +25,11 @@ class WebBridge(QObject):
     script_state = Signal(str)
     script_progress = Signal(int)
 
-    def __init__(self, bus=None, comm=None) -> None:
+    def __init__(self, bus=None, comm=None, window=None) -> None:
         super().__init__()
         self._bus = bus
         self._comm = comm
+        self._window = window
         self._script_runner: Optional[ScriptRunnerQt] = None
         self._buffer: List[Dict[str, Any]] = []
         self._flush_timer = QTimer(self)
@@ -104,6 +105,57 @@ class WebBridge(QObject):
     def stop_script(self) -> None:
         if self._script_runner and self._script_runner.isRunning():
             self._script_runner.stop()
+
+    @Slot()
+    def window_minimize(self) -> None:
+        if self._window:
+            self._window.showMinimized()
+
+    @Slot()
+    def window_maximize(self) -> None:
+        if self._window:
+            self._window.showMaximized()
+
+    @Slot()
+    def window_restore(self) -> None:
+        if self._window:
+            self._window.showNormal()
+
+    @Slot()
+    def window_toggle_maximize(self) -> None:
+        if not self._window:
+            return
+        if self._window.isMaximized():
+            self._window.showNormal()
+        else:
+            self._window.showMaximized()
+
+    @Slot()
+    def window_close(self) -> None:
+        if self._window:
+            self._window.close()
+
+    @Slot()
+    def window_start_move(self) -> None:
+        if not self._window:
+            return
+        handle = self._window.windowHandle()
+        if handle and hasattr(handle, "startSystemMove"):
+            handle.startSystemMove()
+
+    @Slot(int, int)
+    def window_apply_snap(self, screen_x: int, screen_y: int) -> None:
+        if not self._window:
+            return
+        if hasattr(self._window, "_apply_snap"):
+            self._window._apply_snap(screen_x, screen_y)
+
+    @Slot(int, int)
+    def window_show_system_menu(self, screen_x: int, screen_y: int) -> None:
+        if not self._window:
+            return
+        if hasattr(self._window, "_show_system_menu"):
+            self._window._show_system_menu(screen_x, screen_y)
 
     def _emit_bytes(self, payload: bytes | str | Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(payload, dict):

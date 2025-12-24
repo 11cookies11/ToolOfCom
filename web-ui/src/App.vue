@@ -18,6 +18,12 @@ const scriptState = ref('idle')
 const scriptProgress = ref(0)
 const yamlText = ref('# paste DSL YAML here')
 const currentView = ref('control')
+const draggingWindow = ref(false)
+const dragArmed = ref(false)
+const dragStarted = ref(false)
+const dragStart = ref({ x: 0, y: 0 })
+const snapPreview = ref('')
+const enableSnapPreview = ref(false)
 const logLevel = ref('ALL')
 const logKeyword = ref('')
 
@@ -165,10 +171,167 @@ onMounted(() => {
     }
   }, 200)
 })
+
+function armWindowMove(event) {
+  if (!event) return
+  dragArmed.value = true
+  dragStarted.value = false
+  dragStart.value = { x: event.screenX, y: event.screenY }
+}
+
+function maybeStartWindowMove(event) {
+  if (!dragArmed.value || dragStarted.value || !event) return
+  const dx = Math.abs(event.screenX - dragStart.value.x)
+  const dy = Math.abs(event.screenY - dragStart.value.y)
+  if (dx < 10 && dy < 10) return
+  if (bridge.value) {
+    bridge.value.window_start_move()
+  }
+  dragStarted.value = true
+  draggingWindow.value = true
+  snapPreview.value = ''
+  attachDragListeners()
+}
+
+function minimizeWindow() {
+  if (bridge.value) {
+    bridge.value.window_minimize()
+  }
+}
+
+function toggleMaximize() {
+  if (bridge.value) {
+    bridge.value.window_toggle_maximize()
+  }
+}
+
+function closeWindow() {
+  if (bridge.value) {
+    bridge.value.window_close()
+  }
+}
+
+function applyWindowSnap(event) {
+  if (bridge.value && event && dragStarted.value) {
+    bridge.value.window_apply_snap(Math.round(event.screenX), Math.round(event.screenY))
+  }
+  clearDragState()
+}
+
+function showSystemMenu(event) {
+  if (bridge.value && event) {
+    bridge.value.window_show_system_menu(Math.round(event.screenX), Math.round(event.screenY))
+  }
+}
+
+function updateSnapPreview(event) {
+  if (!draggingWindow.value || !event) return
+  if (event.buttons !== 1) {
+    snapPreview.value = ''
+    return
+  }
+  if (!enableSnapPreview.value) {
+    snapPreview.value = ''
+    return
+  }
+  const margin = 24
+  const x = event.clientX
+  const y = event.clientY
+  const width = window.innerWidth
+  const height = window.innerHeight
+  if (y <= margin) {
+    snapPreview.value = 'max'
+  } else if (x <= margin) {
+    snapPreview.value = 'left'
+  } else if (x >= width - margin) {
+    snapPreview.value = 'right'
+  } else {
+    snapPreview.value = ''
+  }
+}
+
+function handleDragEnd(event) {
+  if (!draggingWindow.value) return
+  applyWindowSnap(event)
+}
+
+function attachDragListeners() {
+  window.addEventListener('mousemove', updateSnapPreview)
+  window.addEventListener('mouseup', handleDragEnd)
+  window.addEventListener('blur', handleDragCancel)
+  document.addEventListener('visibilitychange', handleDragCancel)
+}
+
+function detachDragListeners() {
+  window.removeEventListener('mousemove', updateSnapPreview)
+  window.removeEventListener('mouseup', handleDragEnd)
+  window.removeEventListener('blur', handleDragCancel)
+  document.removeEventListener('visibilitychange', handleDragCancel)
+}
+
+function handleDragCancel() {
+  clearDragState()
+}
+
+function clearDragState() {
+  draggingWindow.value = false
+  dragArmed.value = false
+  dragStarted.value = false
+  snapPreview.value = ''
+  detachDragListeners()
+}
 </script>
 
 <template>
   <div class="app">
+    <header
+      class="app-titlebar"
+      @dblclick="toggleMaximize"
+      @mousedown.left="armWindowMove"
+      @mousemove="maybeStartWindowMove"
+      @mouseup.left="applyWindowSnap"
+      @contextmenu.prevent="showSystemMenu"
+    >
+      <button
+        class="app-icon"
+        type="button"
+        @mousedown.stop
+        @dblclick.stop
+        @click.stop="showSystemMenu"
+      >
+        <span class="app-icon-dot"></span>
+      </button>
+      <div class="app-title">ProtoFlow</div>
+      <div class="title-actions">
+        <button
+          class="title-btn"
+          type="button"
+          @mousedown.stop
+          @dblclick.stop
+          @click.stop="minimizeWindow"
+        >
+          <el-icon><Minus /></el-icon>
+        </button>
+        <button
+          class="title-btn"
+          type="button"
+          @mousedown.stop
+          @dblclick.stop
+          @click.stop="toggleMaximize"
+        >
+          <el-icon><FullScreen /></el-icon>
+        </button>
+        <button
+          class="title-btn close"
+          type="button"
+          @mousedown.stop
+          @dblclick.stop
+          @click.stop="closeWindow"
+        >
+          <el-icon><Close /></el-icon>
+        </button>
+      </div>
+    </header>
     <div class="body">
       <aside class="nav">
         <div class="nav-title">Navigation</div>
@@ -392,5 +555,6 @@ onMounted(() => {
         </div>
       </section>
     </div>
+    <div v-if="snapPreview" class="snap-overlay" :class="`snap-${snapPreview}`"></div>
   </div>
 </template>

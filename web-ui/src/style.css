@@ -64,6 +64,103 @@ body::-webkit-scrollbar,
   min-height: 0;
 }
 
+.app-titlebar {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 8px 0 10px;
+  background: #f3f3f3;
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.app-icon {
+  height: 20px;
+  width: 20px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+}
+
+.app-icon:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.app-icon-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: #007acc;
+}
+
+.app-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e1e1e;
+  letter-spacing: 0.2px;
+  flex: 1;
+}
+
+.title-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.title-btn {
+  height: 24px;
+  width: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #1e1e1e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.title-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.title-btn.close:hover {
+  background: #e81123;
+  color: #ffffff;
+}
+
+.snap-overlay {
+  position: fixed;
+  top: 30px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid rgba(0, 120, 212, 0.7);
+  background: rgba(0, 120, 212, 0.12);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.snap-left {
+  right: 50%;
+}
+
+.snap-right {
+  left: 50%;
+}
+
+.snap-max {
+  left: 0;
+  right: 0;
+}
+
 .nav {
   width: 200px;
   padding: 16px;

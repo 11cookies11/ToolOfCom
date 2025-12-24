@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import ElementPlus, { FixedSizeList } from 'element-plus'
+import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import 'element-plus/dist/index.css'
 import 'element-plus/es/components/virtual-list/style/css'
 import './style.css'
@@ -31,6 +32,9 @@ async function bootstrap() {
   const app = createApp(App)
   app.use(ElementPlus)
   app.component('ElFixedSizeList', FixedSizeList)
+  for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+    app.component(key, component)
+  }
   app.mount('#app')
 }
 
