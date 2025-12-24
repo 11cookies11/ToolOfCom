@@ -21,10 +21,16 @@
   --el-color-primary: var(--accent);
   --el-border-color: var(--border);
   --el-color-info: #8c98ae;
+  --titlebar-height: 30px;
 }
 
 * {
   box-sizing: border-box;
+}
+
+body.resizing {
+  user-select: none;
+  cursor: default;
 }
 
 html,
@@ -65,7 +71,7 @@ body::-webkit-scrollbar,
 }
 
 .app-titlebar {
-  height: 30px;
+  height: var(--titlebar-height);
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -136,6 +142,77 @@ body::-webkit-scrollbar,
   color: #ffffff;
 }
 
+.resize-handle {
+  position: fixed;
+  z-index: 10000;
+  background: transparent;
+}
+
+.resize-handle.top,
+.resize-handle.bottom {
+  left: 6px;
+  right: 6px;
+  height: 6px;
+}
+
+.resize-handle.left,
+.resize-handle.right {
+  top: var(--titlebar-height);
+  bottom: 6px;
+  width: 6px;
+}
+
+.resize-handle.top {
+  top: 0;
+  cursor: n-resize;
+}
+
+.resize-handle.bottom {
+  bottom: 0;
+  cursor: s-resize;
+}
+
+.resize-handle.left {
+  left: 0;
+  cursor: w-resize;
+}
+
+.resize-handle.right {
+  right: 0;
+  cursor: e-resize;
+}
+
+.resize-handle.top-left,
+.resize-handle.top-right,
+.resize-handle.bottom-left,
+.resize-handle.bottom-right {
+  width: 10px;
+  height: 10px;
+}
+
+.resize-handle.top-left {
+  top: 0;
+  left: 0;
+  cursor: nw-resize;
+}
+
+.resize-handle.top-right {
+  top: 0;
+  right: 0;
+  cursor: ne-resize;
+}
+
+.resize-handle.bottom-left {
+  bottom: 0;
+  left: 0;
+  cursor: sw-resize;
+}
+
+.resize-handle.bottom-right {
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+}
 .snap-overlay {
   position: fixed;
   top: 30px;

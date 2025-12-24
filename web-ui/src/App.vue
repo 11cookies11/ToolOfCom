@@ -185,7 +185,11 @@ function maybeStartWindowMove(event) {
   const dy = Math.abs(event.screenY - dragStart.value.y)
   if (dx < 10 && dy < 10) return
   if (bridge.value) {
-    bridge.value.window_start_move()
+    if (bridge.value.window_start_move_at) {
+      bridge.value.window_start_move_at(Math.round(event.screenX), Math.round(event.screenY))
+    } else {
+      bridge.value.window_start_move()
+    }
   }
   dragStarted.value = true
   draggingWindow.value = true
@@ -222,6 +226,12 @@ function showSystemMenu(event) {
   if (bridge.value && event) {
     bridge.value.window_show_system_menu(Math.round(event.screenX), Math.round(event.screenY))
   }
+}
+
+function startResize(edge, event) {
+  if (!bridge.value || !edge || !event) return
+  document.body.classList.add('resizing')
+  bridge.value.window_start_resize(edge)
 }
 
 function updateSnapPreview(event) {
@@ -278,12 +288,21 @@ function clearDragState() {
   dragArmed.value = false
   dragStarted.value = false
   snapPreview.value = ''
+  document.body.classList.remove('resizing')
   detachDragListeners()
 }
 </script>
 
 <template>
   <div class="app">
+    <div class="resize-handle top" @mousedown.stop="startResize('top', $event)"></div>
+    <div class="resize-handle bottom" @mousedown.stop="startResize('bottom', $event)"></div>
+    <div class="resize-handle left" @mousedown.stop="startResize('left', $event)"></div>
+    <div class="resize-handle right" @mousedown.stop="startResize('right', $event)"></div>
+    <div class="resize-handle top-left" @mousedown.stop="startResize('top-left', $event)"></div>
+    <div class="resize-handle top-right" @mousedown.stop="startResize('top-right', $event)"></div>
+    <div class="resize-handle bottom-left" @mousedown.stop="startResize('bottom-left', $event)"></div>
+    <div class="resize-handle bottom-right" @mousedown.stop="startResize('bottom-right', $event)"></div>
     <header
       class="app-titlebar"
       @dblclick="toggleMaximize"

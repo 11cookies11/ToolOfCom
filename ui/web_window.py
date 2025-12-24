@@ -24,6 +24,8 @@ class WebWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("ProtoFlow Web UI")
         self.resize(1200, 800)
+        self._normal_geometry = self.geometry()
+        self._titlebar_height = 30
 
         self.setMinimumSize(960, 600)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowSystemMenuHint)
@@ -57,6 +59,10 @@ class WebWindow(QMainWindow):
         if not (at_left or at_right or at_top):
             return False
         self.showNormal()
+        if at_top and not (at_left or at_right):
+            self._remember_normal_geometry()
+            self.showMaximized()
+            return True
         if at_top and at_left:
             self.setGeometry(rect.x(), rect.y(), rect.width() // 2, rect.height() // 2)
         elif at_top and at_right:
@@ -71,8 +77,22 @@ class WebWindow(QMainWindow):
         elif at_right:
             self.setGeometry(rect.x() + rect.width() // 2, rect.y(), rect.width() // 2, rect.height())
         else:
+            self._remember_normal_geometry()
             self.setGeometry(rect)
         return True
+
+    def _start_move(self, screen_x: int, screen_y: int) -> None:
+        handle = self.windowHandle()
+        if self.isMaximized():
+            screen = QGuiApplication.screenAt(QPoint(screen_x, screen_y))
+            if not screen:
+                screen = self.screen() if hasattr(self, "screen") else None
+            normal = self._get_normal_geometry()
+            self.showNormal()
+            self.setWindowState(self.windowState() & ~Qt.WindowMaximized)
+            self.setGeometry(self.x(), self.y(), normal.width(), normal.height())
+        if handle and hasattr(handle, "startSystemMove"):
+            handle.startSystemMove()
 
     def _show_system_menu(self, screen_x: int, screen_y: int) -> None:
         menu = QMenu(self)
@@ -116,3 +136,44 @@ class WebWindow(QMainWindow):
         menu.addAction(action_close)
 
         menu.exec(QPoint(screen_x, screen_y))
+
+    def _start_resize(self, edge: str) -> None:
+        handle = self.windowHandle()
+        if not handle or not hasattr(handle, "startSystemResize"):
+            return
+        edge_map = {
+            "left": Qt.LeftEdge,
+            "right": Qt.RightEdge,
+            "top": Qt.TopEdge,
+            "bottom": Qt.BottomEdge,
+            "top-left": Qt.TopEdge | Qt.LeftEdge,
+            "top-right": Qt.TopEdge | Qt.RightEdge,
+            "bottom-left": Qt.BottomEdge | Qt.LeftEdge,
+            "bottom-right": Qt.BottomEdge | Qt.RightEdge,
+        }
+        qt_edge = edge_map.get(edge)
+        if qt_edge is None:
+            return
+        handle.startSystemResize(qt_edge)
+
+    def _update_normal_geometry(self) -> None:
+        if not self.isMaximized() and not self.isMinimized():
+            self._normal_geometry = self.geometry()
+
+    def _remember_normal_geometry(self) -> None:
+        if not self.isMaximized() and not self.isMinimized():
+            self._normal_geometry = self.geometry()
+
+    def _get_normal_geometry(self):
+        normal = self._normal_geometry
+        if normal is None:
+            normal = self.normalGeometry()
+        return normal
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._update_normal_geometry()
+
+    def moveEvent(self, event) -> None:  # type: ignore[override]
+        super().moveEvent(event)
+        self._update_normal_geometry()

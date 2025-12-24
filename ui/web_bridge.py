@@ -114,6 +114,8 @@ class WebBridge(QObject):
     @Slot()
     def window_maximize(self) -> None:
         if self._window:
+            if hasattr(self._window, "_remember_normal_geometry"):
+                self._window._remember_normal_geometry()
             self._window.showMaximized()
 
     @Slot()
@@ -128,6 +130,8 @@ class WebBridge(QObject):
         if self._window.isMaximized():
             self._window.showNormal()
         else:
+            if hasattr(self._window, "_remember_normal_geometry"):
+                self._window._remember_normal_geometry()
             self._window.showMaximized()
 
     @Slot()
@@ -142,6 +146,24 @@ class WebBridge(QObject):
         handle = self._window.windowHandle()
         if handle and hasattr(handle, "startSystemMove"):
             handle.startSystemMove()
+
+    @Slot(int, int)
+    def window_start_move_at(self, screen_x: int, screen_y: int) -> None:
+        if not self._window:
+            return
+        if hasattr(self._window, "_start_move"):
+            self._window._start_move(screen_x, screen_y)
+            return
+        handle = self._window.windowHandle()
+        if handle and hasattr(handle, "startSystemMove"):
+            handle.startSystemMove()
+
+    @Slot(str)
+    def window_start_resize(self, edge: str) -> None:
+        if not self._window:
+            return
+        if hasattr(self._window, "_start_resize"):
+            self._window._start_resize(edge)
 
     @Slot(int, int)
     def window_apply_snap(self, screen_x: int, screen_y: int) -> None:
