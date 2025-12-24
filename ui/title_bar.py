@@ -89,7 +89,7 @@ class TitleButton(QPushButton):
 class TitleBar(QFrame):
     """自定义标题栏，含拖拽、双击最大化与未来感配色。"""
 
-    def __init__(self, parent) -> None:
+    def __init__(self, parent, title_text: str | None = "ProtoFlow") -> None:
         super().__init__(parent)
         self.parent = parent
         self.setObjectName("titleBar")
@@ -104,8 +104,10 @@ class TitleBar(QFrame):
         logo.setPixmap(self._build_logo_pixmap())
         logo.setFixedSize(22, 22)
 
-        title = QLabel("ProtoFlow")
+        title = QLabel(title_text or "")
         title.setObjectName("titleText")
+        if not title_text:
+            title.setVisible(False)
 
         layout.addWidget(logo)
         layout.addWidget(title)
@@ -119,11 +121,7 @@ class TitleBar(QFrame):
         layout.addWidget(self.max_btn)
         layout.addWidget(self.close_btn)
 
-        effect = QGraphicsDropShadowEffect(self)
-        effect.setBlurRadius(12)
-        effect.setColor(QColor(0, 0, 0, 60))
-        effect.setOffset(0, 2)
-        self.setGraphicsEffect(effect)
+        self._shadow_effect = None
 
         self._dragging = False
         self._drag_pos = None
@@ -195,6 +193,11 @@ class TitleBar(QFrame):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
         if event.button() == Qt.LeftButton and not self._on_controls(event.pos()):
+            handle = self.parent.windowHandle() if self.parent else None
+            if handle and hasattr(handle, "startSystemMove"):
+                handle.startSystemMove()
+                event.accept()
+                return
             gp = event.globalPosition().toPoint() if hasattr(event, "globalPosition") else event.globalPos()
             self._dragging = True
             self._drag_pos = gp - self.parent.frameGeometry().topLeft()
