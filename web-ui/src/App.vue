@@ -60,17 +60,26 @@ const channelStopBits = ref('1')
 const channelHost = ref('127.0.0.1')
 const channelTcpPort = ref(502)
 const channelAutoConnect = ref(true)
-const uiLanguage = ref('English (US)')
+const uiLanguage = ref('????')
 const uiTheme = ref('娴呰壊')
 const defaultBaud = ref(115200)
 const defaultParity = ref('none')
 const defaultStopBits = ref('1')
+const tcpTimeoutMs = ref(5000)
+const tcpHeartbeatSec = ref(60)
+const tcpRetryCount = ref(3)
+const dslWorkspacePath = ref('/usr/local/protoflow/workflows')
+const autoConnectOnStart = ref(true)
+const settingsSaving = ref(false)
+const settingsSnapshot = ref(null)
 const channelTab = ref('all')
 const protocolTab = ref('all')
 const settingsTab = ref('general')
 const settingsGeneralRef = ref(null)
 const settingsNetworkRef = ref(null)
 const settingsPluginsRef = ref(null)
+const settingsRuntimeRef = ref(null)
+const settingsLogsRef = ref(null)
 
 const noPorts = computed(() => ports.value.length === 0)
 const portOptionsList = computed(() => ports.value.map((item) => ({ label: item, value: item, icon: 'usb' })))
@@ -474,13 +483,13 @@ function handleNewChannel() {
   channelType.value = 'serial'
   channelName.value = ''
   channelPort.value = selectedPort.value || ports.value[0] || ''
-  channelBaud.value = Number(baud.value || 115200)
+  channelBaud.value = Number(defaultBaud.value || 115200)
   channelDataBits.value = '8'
-  channelParity.value = 'none'
-  channelStopBits.value = '1'
+  channelParity.value = defaultParity.value || 'none'
+  channelStopBits.value = defaultStopBits.value || '1'
   channelHost.value = tcpHost.value || '127.0.0.1'
   channelTcpPort.value = Number(tcpPort.value || 502)
-  channelAutoConnect.value = true
+  channelAutoConnect.value = !!autoConnectOnStart.value
   channelDialogOpen.value = true
 }
 
@@ -745,6 +754,7 @@ function attachBridge(obj) {
   refreshPorts()
   refreshChannels()
   refreshProtocols()
+  loadSettings()
 }
 
 onMounted(() => {
@@ -763,6 +773,7 @@ onMounted(() => {
     nextTick(() => initYamlEditor())
   }
   window.addEventListener('keydown', handleGlobalKeydown)
+  loadSettings()
 })
 
 onBeforeUnmount(() => {
@@ -916,11 +927,130 @@ function setSettingsTab(tab) {
     general: settingsGeneralRef,
     network: settingsNetworkRef,
     plugins: settingsPluginsRef,
+    runtime: settingsRuntimeRef,
+    logs: settingsLogsRef,
   }
   const target = targets[tab]
   if (target && target.value && typeof target.value.scrollIntoView === 'function') {
     target.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+}
+
+
+const settingsDirty = computed(() => {
+  if (!settingsSnapshot.value) return false
+  return JSON.stringify(buildSettingsPayload()) !== JSON.stringify(settingsSnapshot.value)
+})
+
+function buildSettingsPayload() {
+  return {
+    uiLanguage: uiLanguage.value,
+    uiTheme: uiTheme.value,
+    autoConnectOnStart: !!autoConnectOnStart.value,
+    dslWorkspacePath: dslWorkspacePath.value,
+    serial: {
+      defaultBaud: Number(defaultBaud.value || 115200),
+      defaultParity: defaultParity.value,
+      defaultStopBits: defaultStopBits.value,
+    },
+    network: {
+      tcpTimeoutMs: Number(tcpTimeoutMs.value || 0),
+      tcpHeartbeatSec: Number(tcpHeartbeatSec.value || 0),
+      tcpRetryCount: Number(tcpRetryCount.value || 0),
+    },
+  }
+}
+
+function normalizeSettings(payload) {
+  const defaults = {
+    uiLanguage: '????',
+    uiTheme: '????',
+    autoConnectOnStart: true,
+    dslWorkspacePath: '/usr/local/protoflow/workflows',
+    serial: {
+      defaultBaud: 115200,
+      defaultParity: 'none',
+      defaultStopBits: '1',
+    },
+    network: {
+      tcpTimeoutMs: 5000,
+      tcpHeartbeatSec: 60,
+      tcpRetryCount: 3,
+    },
+  }
+  if (!payload || typeof payload !== 'object') return defaults
+  return {
+    ...defaults,
+    ...payload,
+    serial: {
+      ...defaults.serial,
+      ...(payload.serial || {}),
+    },
+    network: {
+      ...defaults.network,
+      ...(payload.network || {}),
+    },
+  }
+}
+
+function applySettings(payload) {
+  const normalized = normalizeSettings(payload)
+  uiLanguage.value = normalized.uiLanguage
+  uiTheme.value = normalized.uiTheme
+  autoConnectOnStart.value = !!normalized.autoConnectOnStart
+  dslWorkspacePath.value = normalized.dslWorkspacePath
+  defaultBaud.value = Number(normalized.serial.defaultBaud || 115200)
+  defaultParity.value = normalized.serial.defaultParity || 'none'
+  defaultStopBits.value = normalized.serial.defaultStopBits || '1'
+  tcpTimeoutMs.value = Number(normalized.network.tcpTimeoutMs || 0)
+  tcpHeartbeatSec.value = Number(normalized.network.tcpHeartbeatSec || 0)
+  tcpRetryCount.value = Number(normalized.network.tcpRetryCount || 0)
+  baud.value = Number(defaultBaud.value || 115200)
+}
+
+function loadSettings() {
+  if (bridge.value && bridge.value.load_settings) {
+    withResult(bridge.value.load_settings(), (payload) => {
+      const normalized = normalizeSettings(payload)
+      applySettings(normalized)
+      settingsSnapshot.value = normalized
+    })
+    return
+  }
+  const normalized = normalizeSettings(null)
+  applySettings(normalized)
+  settingsSnapshot.value = normalized
+}
+
+function saveSettings() {
+  const payload = buildSettingsPayload()
+  settingsSaving.value = true
+  const finalize = () => {
+    settingsSnapshot.value = normalizeSettings(payload)
+    settingsSaving.value = false
+  }
+  if (bridge.value && bridge.value.save_settings) {
+    withResult(bridge.value.save_settings(payload), () => finalize())
+  } else {
+    finalize()
+  }
+}
+
+function discardSettings() {
+  if (!settingsSnapshot.value) return
+  applySettings(settingsSnapshot.value)
+}
+
+function chooseDslWorkspace() {
+  if (!bridge.value || !bridge.value.select_directory) return
+  withResult(
+    bridge.value.select_directory('????', dslWorkspacePath.value || ''),
+    (value) => {
+      if (value) {
+        dslWorkspacePath.value = value
+      }
+    }
+  )
 }
 
 function updateSnapPreview(event) {
@@ -1631,8 +1761,8 @@ function clearDragState() {
                   <p>管理全局偏好、协议默认值和运行时环境配置。</p>
             </div>
             <div class="header-actions">
-              <button class="btn btn-outline">放弃更改</button>
-              <button class="btn btn-primary">
+              <button class="btn btn-outline" :disabled="!settingsDirty" @click="discardSettings">放弃更改</button>
+              <button class="btn btn-primary" :disabled="!settingsDirty || settingsSaving" @click="saveSettings">
                 <span class="material-symbols-outlined">save</span>
                 保存更改
               </button>
@@ -1674,7 +1804,7 @@ function clearDragState() {
                   <p>自动尝试重连上次活动的通道。</p>
                 </div>
                 <label class="switch">
-                  <input type="checkbox" />
+                  <input v-model="autoConnectOnStart" type="checkbox" />
                   <span></span>
                 </label>
               </div>
@@ -1689,15 +1819,15 @@ function clearDragState() {
               <div class="form-grid triple">
                 <label>
                   发送超时 (ms)
-                  <input type="number" value="5000" />
+                  <input v-model.number="tcpTimeoutMs" type="number" />
                 </label>
                 <label>
                   心跳间隔 (s)
-                  <input type="number" value="60" />
+                  <input v-model.number="tcpHeartbeatSec" type="number" />
                 </label>
                 <label>
                   重试次数
-                  <input type="number" value="3" />
+                  <input v-model.number="tcpRetryCount" type="number" />
                 </label>
               </div>
               <div class="divider"></div>
@@ -1727,9 +1857,9 @@ function clearDragState() {
                 工作目录
                 <div class="file-input">
                   <span class="material-symbols-outlined">folder_open</span>
-                  <input type="text" readonly value="/usr/local/protoflow/workflows" />
+                  <input v-model="dslWorkspacePath" type="text" readonly />
                 </div>
-                <button class="btn btn-outline">放弃更改</button>
+                <button class="btn btn-outline" type="button" @click="chooseDslWorkspace">选择目录</button>
               </label>
               <div class="divider"></div>
               <div class="panel-title simple inline">
@@ -1761,9 +1891,29 @@ function clearDragState() {
                   <p>自动尝试重连上次活动的通道。</p>
                 </div>
                 <label class="switch">
-                  <input type="checkbox" checked />
+                  <input v-model="autoConnectOnStart" type="checkbox" />
                   <span></span>
                 </label>
+              </div>
+            </div>
+
+            <div class="panel" ref="settingsRuntimeRef">
+              <div class="panel-title simple">
+                <span class="material-symbols-outlined">tune</span>
+                运行时
+              </div>
+              <div class="empty-state muted">
+                暂无可配置项，运行时设置将随着模块扩展开放。
+              </div>
+            </div>
+
+            <div class="panel" ref="settingsLogsRef">
+              <div class="panel-title simple">
+                <span class="material-symbols-outlined">folder_open</span>
+                日志
+              </div>
+              <div class="empty-state muted">
+                日志采集与归档策略将在后续版本中提供。
               </div>
             </div>
           </div>

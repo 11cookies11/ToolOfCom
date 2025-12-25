@@ -1590,6 +1590,16 @@ textarea {
   gap: 18px;
 }
 
+.empty-state {
+  padding: 12px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.muted {
+  color: var(--muted);
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

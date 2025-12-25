@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import pkgutil
 import time
 from pathlib import Path
@@ -41,6 +42,7 @@ class WebBridge(QObject):
         self._script_runner: Optional[ScriptRunnerQt] = None
         self._buffer: List[Dict[str, Any]] = []
         self._protocols_loaded = False
+        self._settings_path = Path.cwd() / "config" / "ui_settings.json"
         self._channel_state: Dict[str, Any] = {
             "type": None,
             "status": "disconnected",
@@ -102,6 +104,18 @@ class WebBridge(QObject):
                 }
             )
         return items
+
+    @Slot(result="QVariant")
+    def load_settings(self) -> Dict[str, Any]:
+        return self._load_settings()
+
+    @Slot("QVariant", result=bool)
+    def save_settings(self, payload: Dict[str, Any]) -> bool:
+        return self._save_settings(payload)
+
+    @Slot(str, str, result=str)
+    def select_directory(self, title: str, start_dir: str) -> str:
+        return QFileDialog.getExistingDirectory(None, title or "选择目录", start_dir or "")
 
     @Slot(str, int)
     def connect_serial(self, port: str, baud: int = 115200) -> None:
@@ -352,6 +366,56 @@ class WebBridge(QObject):
         if "tcp" in name:
             return "tcp"
         return "custom"
+
+    def _settings_defaults(self) -> Dict[str, Any]:
+        base_path = (Path.cwd() / "workflows").resolve()
+        return {
+            "uiLanguage": "简体中文",
+            "uiTheme": "系统默认",
+            "autoConnectOnStart": True,
+            "dslWorkspacePath": str(base_path),
+            "serial": {
+                "defaultBaud": 115200,
+                "defaultParity": "none",
+                "defaultStopBits": "1",
+            },
+            "network": {
+                "tcpTimeoutMs": 5000,
+                "tcpHeartbeatSec": 60,
+                "tcpRetryCount": 3,
+            },
+        }
+
+    def _load_settings(self) -> Dict[str, Any]:
+        defaults = self._settings_defaults()
+        if not self._settings_path.exists():
+            return defaults
+        try:
+            with self._settings_path.open("r", encoding="utf-8") as handle:
+                data = json.load(handle) or {}
+        except Exception:
+            return defaults
+        if not isinstance(data, dict):
+            return defaults
+        merged = {
+            **defaults,
+            **data,
+            "serial": {**defaults.get("serial", {}), **(data.get("serial", {}) or {})},
+            "network": {**defaults.get("network", {}), **(data.get("network", {}) or {})},
+        }
+        return merged
+
+    def _save_settings(self, payload: Dict[str, Any]) -> bool:
+        if not isinstance(payload, dict):
+            return False
+        try:
+            self._settings_path.parent.mkdir(parents=True, exist_ok=True)
+            with self._settings_path.open("w", encoding="utf-8") as handle:
+                json.dump(payload, handle, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            self.log.emit(f"[WARN] Save settings failed: {exc}")
+            return False
+        return True
 
     def _append_buffer(self, item: Dict[str, Any]) -> None:
         self._buffer.append(item)

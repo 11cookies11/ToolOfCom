@@ -1,0 +1,16 @@
+{
+  "autoConnectOnStart": false,
+  "dslWorkspacePath": "D:\\GitRepository\\ProtoFlow\\web-ui\\workflows",
+  "network": {
+    "tcpHeartbeatSec": 60,
+    "tcpRetryCount": 3,
+    "tcpTimeoutMs": 5000
+  },
+  "serial": {
+    "defaultBaud": 115200,
+    "defaultParity": "none",
+    "defaultStopBits": "1"
+  },
+  "uiLanguage": "English (US)",
+  "uiTheme": "系统默认"
+}
