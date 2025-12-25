@@ -1121,10 +1121,13 @@ textarea {
   background: #f1f5f9;
   color: #64748b;
   border: 1px solid #e2e8f0;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 999px;
   font-size: 10px;
   font-weight: 700;
+  min-width: 44px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .status-pill {

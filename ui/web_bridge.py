@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib
+import pkgutil
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -11,6 +13,8 @@ except ImportError:  # pragma: no cover
     from PyQt6.QtCore import QObject, QTimer, pyqtSignal as Signal, pyqtSlot as Slot  # type: ignore
     from PyQt6.QtWidgets import QFileDialog  # type: ignore
 
+from protocols.registry import ProtocolRegistry
+import protocols as protocols_pkg
 from ui.script_runner_qt import ScriptRunnerQt
 
 
@@ -36,6 +40,7 @@ class WebBridge(QObject):
         self._window = window
         self._script_runner: Optional[ScriptRunnerQt] = None
         self._buffer: List[Dict[str, Any]] = []
+        self._protocols_loaded = False
         self._channel_state: Dict[str, Any] = {
             "type": None,
             "status": "disconnected",
@@ -76,6 +81,27 @@ class WebBridge(QObject):
     @Slot(result="QVariant")
     def list_channels(self) -> List[Dict[str, Any]]:
         return self._build_channel_list()
+
+    @Slot(result="QVariant")
+    def list_protocols(self) -> List[Dict[str, Any]]:
+        self._load_protocols()
+        registry = ProtocolRegistry.list()
+        items: List[Dict[str, Any]] = []
+        for key, cls in sorted(registry.items()):
+            doc = (cls.__doc__ or "").strip()
+            desc = doc.splitlines()[0].strip() if doc else ""
+            category = self._protocol_category(key)
+            items.append(
+                {
+                    "id": key,
+                    "key": key,
+                    "driver": cls.__name__,
+                    "desc": desc,
+                    "category": category,
+                    "status": "available",
+                }
+            )
+        return items
 
     @Slot(str, int)
     def connect_serial(self, port: str, baud: int = 115200) -> None:
@@ -307,6 +333,25 @@ class WebBridge(QObject):
 
     def _on_protocol_frame(self, payload: Any) -> None:
         self._append_buffer({"kind": "FRAME", "payload": payload, "ts": time.time()})
+
+    def _load_protocols(self) -> None:
+        if self._protocols_loaded:
+            return
+        self._protocols_loaded = True
+        try:
+            for module in pkgutil.iter_modules(protocols_pkg.__path__):
+                importlib.import_module(f"{protocols_pkg.__name__}.{module.name}")
+        except Exception as exc:  # pragma: no cover - optional UI detail
+            self.log.emit(f"[WARN] Load protocols failed: {exc}")
+
+    @staticmethod
+    def _protocol_category(key: str) -> str:
+        name = (key or "").lower()
+        if name.startswith("modbus_"):
+            return "modbus"
+        if "tcp" in name:
+            return "tcp"
+        return "custom"
 
     def _append_buffer(self, item: Dict[str, Any]) -> None:
         self._buffer.append(item)

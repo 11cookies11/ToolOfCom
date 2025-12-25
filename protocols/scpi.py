@@ -8,7 +8,7 @@ from protocols.registry import ProtocolRegistry
 
 
 class SCPIProtocol(BaseProtocol):
-    """Simple SCPI command/query helper."""
+    """简单的 SCPI 指令和查询助手。"""
 
     def execute(
         self,

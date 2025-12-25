@@ -60,10 +60,10 @@ const channelStopBits = ref('1')
 const channelHost = ref('127.0.0.1')
 const channelTcpPort = ref(502)
 const channelAutoConnect = ref(true)
-const uiLanguage = ref('简体中文')
-const uiTheme = ref('浅色')
+const uiLanguage = ref('English (US)')
+const uiTheme = ref('娴呰壊')
 const defaultBaud = ref(115200)
-const defaultParity = ref('无')
+const defaultParity = ref('none')
 const defaultStopBits = ref('1')
 const channelTab = ref('all')
 const protocolTab = ref('all')
@@ -88,23 +88,19 @@ const channelCards = computed(() => {
     const type = channel.type || 'unknown'
     const status = channel.status || 'disconnected'
     const statusMap = {
-      connected: { text: '???', className: 'status-ok' },
-      connecting: { text: '???', className: 'status-warn' },
-      error: { text: '??', className: 'status-error' },
-      disconnected: { text: '???', className: 'status-idle' },
-      idle: { text: '??', className: 'status-idle' },
+      connected: { text: '已连接', className: 'status-ok' },
+      connecting: { text: '连接中', className: 'status-warn' },
+      error: { text: '错误', className: 'status-error' },
+      disconnected: { text: '未连接', className: 'status-idle' },
+      idle: { text: '空闲', className: 'status-idle' },
     }
     const statusInfo = statusMap[status] || statusMap.disconnected
     const isSerial = type === 'serial'
     const isTcpClient = type === 'tcp-client'
-    const name = isSerial
-      ? '????'
-      : isTcpClient
-        ? 'TCP ???'
-        : 'TCP ???'
+    const name = isSerial ? '串口通道' : isTcpClient ? 'TCP 客户端' : 'TCP 服务端'
     const details = isSerial
       ? [channel.port || '--', channel.baud ? `${channel.baud} bps` : '--']
-      : [channel.host || channel.address || '--', channel.port ? `??: ${channel.port}` : '--']
+      : [channel.host || channel.address || '--', channel.port ? `端口: ${channel.port}` : '--']
     const traffic = `TX: ${formatBytes(channel.tx_bytes || 0)} / RX: ${formatBytes(channel.rx_bytes || 0)}`
     return {
       id: channel.id || `${type}:${details[0]}`,
@@ -120,47 +116,7 @@ const channelCards = computed(() => {
   })
 })
 
-const protocolCards = ref([
-  {
-    id: 'modbus-rtu',
-    name: 'Modbus_RTU_Core',
-    category: 'modbus',
-    desc: '主生产线传感器',
-    statusText: '运行中',
-    statusClass: 'badge-green',
-    rows: [
-      { label: '协议类型', value: 'Modbus RTU' },
-      { label: '绑定通道', value: 'COM3 (/dev/ttyUSB0)' },
-      { label: '轮询间隔', value: '500ms' },
-    ],
-  },
-  {
-    id: 'tcp-client',
-    name: 'Lab_TCP_Client',
-    category: 'tcp',
-    desc: '实验室数据采集',
-    statusText: '离线',
-    statusClass: 'badge-gray',
-    rows: [
-      { label: '协议类型', value: 'TCP Client' },
-      { label: '目标地址', value: '192.168.1.105:8080' },
-      { label: '重连策略', value: '指数退避' },
-    ],
-  },
-  {
-    id: 'custom-binary',
-    name: 'Custom_Binary_V2',
-    category: 'custom',
-    desc: '私有二进制协议',
-    statusText: '草稿',
-    statusClass: 'badge-yellow',
-    rows: [
-      { label: 'DSL 版本', value: 'v2.1 (YAML)' },
-      { label: '绑定通道', value: '未绑定' },
-      { label: '最后编辑', value: '2小时前' },
-    ],
-  },
-])
+const protocolCards = ref([])
 
 const isConnected = computed(() => connectionInfo.value.state === 'connected')
 
@@ -188,7 +144,7 @@ const scriptCanRun = computed(() => !scriptRunning.value && yamlText.value.trim(
 const scriptCanStop = computed(() => scriptRunning.value)
 const scriptStatusLabel = computed(() => {
   if (scriptRunning.value) {
-    return scriptState.value ? `运行中 · ${scriptState.value}` : '运行中'
+    return scriptState.value ? '运行中 ' + scriptState.value : '运行中'
   }
   return '空闲'
 })
@@ -458,6 +414,57 @@ function refreshChannels() {
   })
 }
 
+function protocolCategory(key) {
+  const name = String(key || "").toLowerCase()
+  if (name.startsWith("modbus_")) return "modbus"
+  if (name.includes("tcp")) return "tcp"
+  return "custom"
+}
+
+function prettyProtocolName(key, fallback) {
+  const value = String(key || "").trim()
+  if (!value) return fallback || "协议"
+  const parts = value.split("_").map((part) => {
+    const upper = part.toUpperCase()
+    if (["RTU", "TCP", "SCPI", "AT", "XMODEM", "YMODEM"].includes(upper)) return upper
+    if (upper.length <= 2) return upper
+    return part.charAt(0).toUpperCase() + part.slice(1)
+  })
+  return parts.join(" ")
+}
+
+function setProtocols(items) {
+  const list = Array.isArray(items) ? items : []
+  protocolCards.value = list.map((item) => {
+    const key = String(item.key || item.id || "")
+    const driver = String(item.driver || item.name || "")
+    const category = String(item.category || protocolCategory(key))
+    const status = String(item.status || "available")
+    const desc = String(item.desc || "暂无描述")
+    return {
+      id: key || driver || Math.random().toString(36).slice(2),
+      name: prettyProtocolName(key, driver),
+      category,
+      desc,
+      statusText: status === "available" ? "可用" : status,
+      statusClass: status === "available" ? "badge-green" : "badge-gray",
+      rows: [
+        { label: "键名", value: key || "--" },
+        { label: "驱动", value: driver || "--" },
+        { label: "分类", value: category || "--" },
+      ],
+    }
+  })
+}
+
+function refreshProtocols() {
+  if (!bridge.value || !bridge.value.list_protocols) return
+  withResult(bridge.value.list_protocols(), (items) => {
+    setProtocols(items)
+  })
+}
+
+
 function handleChannelRefresh() {
   refreshChannels()
   refreshPorts()
@@ -666,7 +673,7 @@ async function copyYaml() {
 }
 
 function searchYaml() {
-  const keyword = window.prompt('Search keyword')
+  const keyword = window.prompt('搜索关键词')
   if (!keyword) return
   if (yamlEditor) {
     const doc = yamlEditor.state.doc.toString()
@@ -737,6 +744,7 @@ function attachBridge(obj) {
   }
   refreshPorts()
   refreshChannels()
+  refreshProtocols()
 }
 
 onMounted(() => {
@@ -782,6 +790,9 @@ watch(
       nextTick(() => initYamlEditor())
     } else {
       destroyYamlEditor()
+    }
+    if (value === 'protocols') {
+      refreshProtocols()
     }
   }
 )
@@ -1111,7 +1122,7 @@ function clearDragState() {
                   <span class="material-symbols-outlined">send</span>
                   发送数据
                   <div class="segmented">
-                    <button :class="{ active: sendMode === 'text' }" @click="sendMode = 'text'">Text</button>
+                    <button :class="{ active: sendMode === 'text' }" @click="sendMode = 'text'">文本</button>
                     <button :class="{ active: sendMode === 'hex' }" @click="sendMode = 'hex'">HEX</button>
                   </div>
                 </div>
@@ -1143,20 +1154,20 @@ function clearDragState() {
                 </div>
                 <button class="btn btn-primary" @click="sendPayload">
                   <span class="material-symbols-outlined">send</span>
-                  发送
+                  发送数据
                 </button>
               </div>
 
               <div class="panel stack manual-quick">
                 <div class="panel-title simple">
-                  快捷指令
+                  发送
                   <button class="icon-btn">
                     <span class="material-symbols-outlined">add</span>
                   </button>
                 </div>
                 <div class="quick-list">
                   <button
-                    v-for="cmd in quickCommands"
+                    快捷指令
                     :key="cmd"
                     class="quick-item"
                     @click="sendQuickCommand(cmd)"
@@ -1182,13 +1193,13 @@ function clearDragState() {
                       <button :class="{ active: displayMode === 'hex' }" @click="displayMode = 'hex'">HEX</button>
                     </div>
                     <span class="divider"></span>
-                    <button class="icon-btn" title="清除">
+                    <button class="icon-btn" title="娓呴櫎">
                       <span class="material-symbols-outlined">delete</span>
                     </button>
-                    <button class="icon-btn" title="暂停">
+                    <button class="icon-btn" title="鏆傚仠">
                       <span class="material-symbols-outlined">pause_circle</span>
                     </button>
-                    <button class="icon-btn" title="导出">
+                    <button class="icon-btn" title="瀵煎嚭">
                       <span class="material-symbols-outlined">download</span>
                     </button>
                   </div>
@@ -1242,7 +1253,7 @@ function clearDragState() {
             <div class="file-info">
               <div class="file-title">
                 {{ scriptFileName }}
-                <span class="badge">READ-ONLY</span>
+                <span class="badge">只读</span>
               </div>
               <div class="file-path">{{ scriptFilePath }}</div>
             </div>
@@ -1269,17 +1280,17 @@ function clearDragState() {
             <div class="panel editor">
               <div class="panel-title bar">
                 <span class="material-symbols-outlined">code</span>
-                DSL Editor
+                DSL 编辑器
                 <div class="panel-actions">
-                  <button class="icon-btn" :title="yamlCollapsed ? '展开' : '收起'" @click="toggleYamlCollapsed">
+                  <button class="icon-btn" :title="yamlCollapsed ? '灞曞紑' : '鏀惰捣'" @click="toggleYamlCollapsed">
                     <span class="material-symbols-outlined">
                       {{ yamlCollapsed ? 'unfold_more' : 'unfold_less' }}
                     </span>
                   </button>
-                  <button class="icon-btn" title="Copy" @click="copyYaml">
+                  <button class="icon-btn" title="复制" @click="copyYaml">
                     <span class="material-symbols-outlined">content_copy</span>
                   </button>
-                  <button class="icon-btn" title="Search" @click="searchYaml">
+                  <button class="icon-btn" title="搜索" @click="searchYaml">
                     <span class="material-symbols-outlined">search</span>
                   </button>
                 </div>
@@ -1368,10 +1379,10 @@ function clearDragState() {
               <span class="material-symbols-outlined">terminal</span>
               运行日志
               <div class="panel-actions">
-                <button class="icon-btn" title="Clear Logs" @click="clearScriptLogs">
+                <button class="icon-btn" title="清空日志" @click="clearScriptLogs">
                   <span class="material-symbols-outlined">block</span>
                 </button>
-                <button class="icon-btn" title="Scroll to Bottom" @click="scrollScriptLogsToBottom">
+                <button class="icon-btn" title="滚动到底部" @click="scrollScriptLogsToBottom">
                   <span class="material-symbols-outlined">vertical_align_bottom</span>
                 </button>
               </div>
@@ -1385,29 +1396,29 @@ function clearDragState() {
         </section>
 
         <section v-else-if="currentView === 'channels'" class="page">
-          <header class="page-header spaced">
-            <div>
-              <h2>通道管理</h2>
-              <p>管理通信连接通道，监控实时状态及配置参数。</p>
-            </div>
-            <div class="header-actions">
-              <button class="btn btn-outline" @click="handleChannelRefresh">
-                <span class="material-symbols-outlined">refresh</span>
-                刷新状态
-              </button>
-              <button class="btn btn-primary" @click="handleNewChannel">
-                <span class="material-symbols-outlined">add</span>
-                新建通道
-              </button>
-            </div>
-          </header>
-          <div class="tab-strip secondary">
-            <button :class="{ active: channelTab === 'all' }" @click="setChannelTab('all')">全部通道</button>
-            <button :class="{ active: channelTab === 'serial' }" @click="setChannelTab('serial')">串口 (Serial)</button>
-            <button :class="{ active: channelTab === 'tcp-client' }" @click="setChannelTab('tcp-client')">TCP 客户端</button>
-            <button :class="{ active: channelTab === 'tcp-server' }" @click="setChannelTab('tcp-server')">TCP 服务端</button>
-          </div>
-          <div class="card-list">
+  <header class="page-header spaced">
+    <div>
+      <h2>通道管理</h2>
+      <p>管理通信连接通道，监控实时状态与配置参数。</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" @click="handleChannelRefresh">
+        <span class="material-symbols-outlined">refresh</span>
+        刷新状态
+      </button>
+      <button class="btn btn-primary" @click="handleNewChannel">
+        <span class="material-symbols-outlined">add</span>
+        新建通道
+      </button>
+    </div>
+  </header>
+  <div class="tab-strip secondary">
+    <button :class="{ active: channelTab === 'all' }" @click="setChannelTab('all')">全部通道</button>
+    <button :class="{ active: channelTab === 'serial' }" @click="setChannelTab('serial')">串口 (Serial)</button>
+    <button :class="{ active: channelTab === 'tcp-client' }" @click="setChannelTab('tcp-client')">TCP 客户端</button>
+    <button :class="{ active: channelTab === 'tcp-server' }" @click="setChannelTab('tcp-server')">TCP 服务端</button>
+  </div>
+  <div class="card-list">
             <div v-for="card in filteredChannelCards" :key="card.id" class="card">
               <div class="card-main">
                 <div class="card-icon">
@@ -1427,7 +1438,7 @@ function clearDragState() {
               </div>
               <div class="card-side">
                 <div class="traffic">
-                  <span>Traffic</span>
+                  <span>流量</span>
                   <strong>{{ card.traffic }}</strong>
                 </div>
                 <div class="status" :class="card.statusClass">
@@ -1482,7 +1493,7 @@ function clearDragState() {
                     @click="channelType = 'tcp'"
                   >
                     <span class="material-symbols-outlined">lan</span>
-                    <span>TCP / Network</span>
+                    <span>TCP / 网络</span>
                   </button>
                 </div>
 
@@ -1490,7 +1501,7 @@ function clearDragState() {
                   <div class="form-grid">
                     <label>
                       通道名称
-                      <input v-model="channelName" type="text" placeholder="例如: 传感器A接口" />
+                      <input v-model="channelName" type="text" placeholder="例如：传感器A接口" />
                     </label>
                     <label v-if="channelType === 'serial'">
                       串口端口
@@ -1504,7 +1515,7 @@ function clearDragState() {
                     </label>
                     <label v-else>
                       目标地址
-                      <input v-model="channelHost" type="text" placeholder="例如: 192.168.1.10" />
+                      <input v-model="channelHost" type="text" placeholder="例如：192.168.1.10" />
                     </label>
                   </div>
                 </div>
@@ -1512,27 +1523,23 @@ function clearDragState() {
                 <div class="modal-section" v-if="channelType === 'serial'">
                   <div class="form-grid triple">
                     <label>
-                      波特率
-                      <DropdownSelect v-model="channelBaud" :options="[9600, 19200, 38400, 57600, 115200]" />
+                      波特率                      <DropdownSelect v-model="channelBaud" :options="[9600, 19200, 38400, 57600, 115200]" />
                     </label>
                     <label>
-                      数据位
-                      <DropdownSelect v-model="channelDataBits" :options="['7', '8']" />
+                      数据位                      <DropdownSelect v-model="channelDataBits" :options="['7', '8']" />
                     </label>
                     <label>
-                      停止位
-                      <DropdownSelect v-model="channelStopBits" :options="['1', '1.5', '2']" />
+                      停止位                      <DropdownSelect v-model="channelStopBits" :options="['1', '1.5', '2']" />
                     </label>
                   </div>
                   <div class="form-grid triple">
                     <label>
-                      校验位
-                      <DropdownSelect
+                      校验位                      <DropdownSelect
                         v-model="channelParity"
                         :options="[
-                          { label: 'None', value: 'none' },
-                          { label: 'Odd', value: 'odd' },
-                          { label: 'Even', value: 'even' },
+                          { label: '无校验', value: 'none' },
+                          { label: '奇校验', value: 'odd' },
+                          { label: '偶校验', value: 'even' },
                         ]"
                       />
                     </label>
@@ -1565,9 +1572,13 @@ function clearDragState() {
           <header class="page-header spaced">
             <div>
               <h2>协议管理</h2>
-              <p>配置通信协议定义，绑定通道并设定解析规则。</p>
+              <p>配置通信协议定义，绑定通道并设置解析规则。</p>
             </div>
             <div class="header-actions">
+              <button class="btn btn-outline" @click="refreshProtocols">
+                <span class="material-symbols-outlined">refresh</span>
+                刷新
+              </button>
               <button class="btn btn-primary">
                 <span class="material-symbols-outlined">add</span>
                 新建协议
@@ -1603,7 +1614,7 @@ function clearDragState() {
                 </button>
               </div>
             </div>
-            <div class="protocol-card empty">
+            <div v-if="filteredProtocolCards.length === 0" class="protocol-card empty">
               <div class="empty-icon">
                 <span class="material-symbols-outlined">add</span>
               </div>
@@ -1617,7 +1628,7 @@ function clearDragState() {
           <header class="page-header spaced">
             <div>
               <h2>应用设置</h2>
-              <p>管理全局偏好、协议默认值和运行时环境配置。</p>
+                  <p>管理全局偏好、协议默认值和运行时环境配置。</p>
             </div>
             <div class="header-actions">
               <button class="btn btn-outline">放弃更改</button>
@@ -1646,7 +1657,7 @@ function clearDragState() {
                   界面语言
                   <DropdownSelect
                     v-model="uiLanguage"
-                    :options="['英语 (美国)', '德语', '日语', '简体中文']"
+                    :options="['简体中文', 'English (US)', 'Deutsch', '日本語']"
                   />
                 </label>
                 <label>
@@ -1660,7 +1671,7 @@ function clearDragState() {
               <div class="toggle-row spaced">
                 <div>
                   <strong>启动时自动连接</strong>
-                  <p>自动尝试重新连接上次活动的通道。</p>
+                  <p>自动尝试重连上次活动的通道。</p>
                 </div>
                 <label class="switch">
                   <input type="checkbox" />
@@ -1672,16 +1683,16 @@ function clearDragState() {
             <div class="panel" ref="settingsNetworkRef">
               <div class="panel-title simple">
                 <span class="material-symbols-outlined">router</span>
-                通信默认设置
+                网络连接设置
               </div>
               <div class="section-title">TCP / IP 配置</div>
               <div class="form-grid triple">
                 <label>
-                  默认超时 (ms)
+                  发送超时 (ms)
                   <input type="number" value="5000" />
                 </label>
                 <label>
-                  保活间隔 (s)
+                  心跳间隔 (s)
                   <input type="number" value="60" />
                 </label>
                 <label>
@@ -1693,19 +1704,16 @@ function clearDragState() {
               <div class="section-title">串口配置</div>
               <div class="form-grid triple">
                 <label>
-                  默认波特率
-                  <DropdownSelect v-model="defaultBaud" :options="[9600, 19200, 38400, 57600, 115200]" />
+                  波特率                  <DropdownSelect v-model="defaultBaud" :options="[9600, 19200, 38400, 57600, 115200]" />
                 </label>
                 <label>
-                  校验位
-                  <DropdownSelect
+                  校验位                  <DropdownSelect
                     v-model="defaultParity"
-                    :options="['无', '偶校验', '奇校验', '标记校验', '空格校验']"
+                  :options="['无校验', '偶校验', '奇校验', '标记校验', '空格校验']"
                   />
                 </label>
                 <label>
-                  停止位
-                  <DropdownSelect v-model="defaultStopBits" :options="['1', '1.5', '2']" />
+                  停止位                  <DropdownSelect v-model="defaultStopBits" :options="['1', '1.5', '2']" />
                 </label>
               </div>
             </div>
@@ -1713,44 +1721,44 @@ function clearDragState() {
             <div class="panel" ref="settingsPluginsRef">
               <div class="panel-title simple">
                 <span class="material-symbols-outlined">extension</span>
-                DSL 与插件
+                DSL 脚本目录
               </div>
               <label class="file-row">
-                工作流定义目录
+                工作目录
                 <div class="file-input">
                   <span class="material-symbols-outlined">folder_open</span>
                   <input type="text" readonly value="/usr/local/protoflow/workflows" />
                 </div>
-                <button class="btn btn-outline">浏览</button>
+                <button class="btn btn-outline">放弃更改</button>
               </label>
               <div class="divider"></div>
               <div class="panel-title simple inline">
-                已安装插件
+                插件管理
                 <button class="link-btn">
                   <span class="material-symbols-outlined">refresh</span>
-                  检查更新
+                  刷新列表
                 </button>
               </div>
               <div class="plugin-list">
                 <div class="plugin-item">
                   <div>
                     <div class="plugin-title">Modbus TCP/RTU</div>
-                    <div class="plugin-meta">v1.2.4 - 核心</div>
+                    <div class="plugin-meta">v1.2.4 - 已启用</div>
                   </div>
-                  <span class="badge badge-green">已激活</span>
+                  <span class="badge badge-green">已启用</span>
                 </div>
                 <div class="plugin-item muted">
                   <div>
-                    <div class="plugin-title">MQTT 桥接</div>
-                    <div class="plugin-meta">v0.9.8 - 社区版</div>
+                    <div class="plugin-title">MQTT 适配器</div>
+                    <div class="plugin-meta">v0.9.8 - 未安装</div>
                   </div>
-                  <span class="badge badge-gray">未激活</span>
+                  <span class="badge badge-gray">未安装</span>
                 </div>
               </div>
               <div class="toggle-row spaced">
                 <div>
-                  <strong>严格 Lint 模式</strong>
-                  <p>拒绝包含已弃用语法警告的工作流。</p>
+                  <strong>启动时自动连接</strong>
+                  <p>自动尝试重连上次活动的通道。</p>
                 </div>
                 <label class="switch">
                   <input type="checkbox" checked />

@@ -8,7 +8,7 @@ from protocols.registry import ProtocolRegistry
 
 
 class ATProtocol(BaseProtocol):
-    """Basic AT command handler over a byte stream channel."""
+    """AT 指令处理器，基于字节流通道。"""
 
     def execute(
         self,
