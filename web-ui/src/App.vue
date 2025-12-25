@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 const bridge = ref(null)
 const connectionInfo = ref({ state: 'disconnected', detail: '' })
@@ -30,6 +30,13 @@ const dragStarted = ref(false)
 const dragStart = ref({ x: 0, y: 0 })
 const snapPreview = ref('')
 const enableSnapPreview = ref(false)
+const portDropdownOpen = ref(false)
+const portDropdownRef = ref(null)
+const portPlaceholder = 'COM3 - USB Serial (115200)'
+
+const portOptions = computed(() => (ports.value.length ? ports.value : [portPlaceholder]))
+const noPorts = computed(() => ports.value.length === 0)
+const selectedPortLabel = computed(() => selectedPort.value || portOptions.value[0] || '')
 
 const quickCommands = ref([
   'AT+GMR',
@@ -318,6 +325,13 @@ onMounted(() => {
       clearInterval(timer)
     }
   }, 200)
+  window.addEventListener('click', handlePortDropdownClick)
+  window.addEventListener('keydown', handlePortDropdownKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('click', handlePortDropdownClick)
+  window.removeEventListener('keydown', handlePortDropdownKeydown)
 })
 
 function armWindowMove(event) {
@@ -341,6 +355,7 @@ function maybeStartWindowMove(event) {
   }
   dragStarted.value = true
   draggingWindow.value = true
+  document.body.classList.add('resizing')
   snapPreview.value = ''
   attachDragListeners()
 }
@@ -380,6 +395,35 @@ function startResize(edge, event) {
   if (!bridge.value || !edge || !event) return
   document.body.classList.add('resizing')
   bridge.value.window_start_resize(edge)
+}
+
+function togglePortDropdown() {
+  portDropdownOpen.value = !portDropdownOpen.value
+}
+
+function closePortDropdown() {
+  portDropdownOpen.value = false
+}
+
+function selectPort(item) {
+  if (!item || noPorts.value) return
+  selectedPort.value = item
+  channelMode.value = 'serial'
+  closePortDropdown()
+}
+
+function handlePortDropdownClick(event) {
+  if (!portDropdownRef.value || !event) return
+  if (!portDropdownRef.value.contains(event.target)) {
+    closePortDropdown()
+  }
+}
+
+function handlePortDropdownKeydown(event) {
+  if (!event) return
+  if (event.key === 'Escape') {
+    closePortDropdown()
+  }
 }
 
 function updateSnapPreview(event) {
@@ -556,13 +600,26 @@ function clearDragState() {
                 <span class="dot"></span>
                 {{ isConnected ? '已连接' : connectionInfo.state === 'error' ? '错误' : '未连接' }}
               </div>
-              <div class="select-wrap">
-                <span class="material-symbols-outlined">usb</span>
-                <select v-model="selectedPort" @change="channelMode = 'serial'">
-                  <option v-for="item in ports" :key="item" :value="item">{{ item }}</option>
-                  <option v-if="ports.length === 0" value="">COM3 - USB Serial (115200)</option>
-                </select>
-                <span class="material-symbols-outlined expand">expand_more</span>
+              <div class="select-wrap" ref="portDropdownRef">
+                <button class="select-trigger" type="button" @click.stop="togglePortDropdown">
+                  <span class="material-symbols-outlined">usb</span>
+                  <span class="select-value">{{ selectedPortLabel }}</span>
+                  <span class="material-symbols-outlined expand">expand_more</span>
+                </button>
+                <div v-if="portDropdownOpen" class="select-menu" @click.stop>
+                  <button
+                    v-for="item in portOptions"
+                    :key="item"
+                    class="select-option"
+                    :class="{ selected: item === selectedPort }"
+                    type="button"
+                    :disabled="noPorts"
+                    @click="selectPort(item)"
+                  >
+                    <span class="material-symbols-outlined">usb</span>
+                    <span>{{ item }}</span>
+                  </button>
+                </div>
               </div>
               <button class="icon-btn" type="button" title="刷新串口" @click="refreshPorts">
                 <span class="material-symbols-outlined">refresh</span>

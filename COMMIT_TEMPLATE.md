@@ -1,4 +1,3 @@
-[commit title]
 <type>(<scope>): <short summary in English>
 
 # type
@@ -43,4 +42,3 @@
 
 Refs:
 - …
-
